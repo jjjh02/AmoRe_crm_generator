@@ -26,7 +26,6 @@ Thumbs.db
 models/
 AmoRe_crm_generator/finetuning/checkpoints/
 AmoRe_crm_generator/finetuning/adapters_dpo/
-AmoRe_crm_generator/finetuning/finetuning_data_dpo/
 
 # Exclude Amore~ folder
 Amore~/
@@ -34,4 +33,3 @@ Amore~/
 # Data
 data/
 adapters_dpo/
-crm-dpo-dataset/

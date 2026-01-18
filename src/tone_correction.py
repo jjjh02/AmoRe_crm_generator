@@ -151,13 +151,10 @@ def build_exaone_prompt(
 
     extra_context = "\n\n".join(prompt_sections)
 
-    user_prompt = f"""다음 초안을 CRM 톤에 맞게 보정하세요. 출력은 JSON 형태로 title/body를 제공합니다.
+    user_prompt = f"""다음 초안을 브랜드 톤에 맞게 발신 목적을 고려하여 보정하세요.
 
 [입력 초안]
 {qwen_draft}
-
-[페르소나]
-{persona_summary}
 
 [브랜드 스토리/톤]
 {brand_story_text}
@@ -165,8 +162,6 @@ def build_exaone_prompt(
 
 [발신 목적]
 스테이지: {stage_name} ({stage_kr})
-목표: {crm_goal.get('objective','')}
-타겟 상태: {crm_goal.get('target_state','')}
 허용 맥락: {allowed}
 금지 맥락: {forbidden}
 CTA 스타일: {crm_goal.get('cta_style','')}
@@ -174,15 +169,12 @@ CTA 스타일: {crm_goal.get('cta_style','')}
 {extra_context}
 
 규칙:
-1) 금지 맥락과 과한 할인/과장 표현을 피하고, 허용 맥락 안에서 자연스럽게 씁니다.
-2) 브랜드 톤 키워드를 반영해 어휘와 문장 리듬을 조정합니다.
-3) 페르소나의 관심사와 가치 포인트를 한두 군데 녹여 공감도를 높입니다.
-4) 발신 목적에 맞는 CTA 문장을 1개 포함합니다.
-5) 숫자/변수 자리의 대괄호 템플릿은 유지하되 새로 만들지 않습니다.
-6) 출력 형식은 아래 두 줄입니다. 레이블을 그대로 포함하세요.
-7) 영어는 줄이고 최대한 한국어로 작성하세요.
+1) 브랜드 톤 키워드와 발신 목적을 반영해 어휘와 문장 리듬을 조정합니다.
+2) CTA 스타일을 적극 반영하세요.
+3) 출력 형식은 아래 두 줄입니다. 레이블을 그대로 포함하세요.
+4) 영어는 줄이고 최대한 한국어로 작성하세요.
 [제목] 한 줄 요약 제목
-[본문] 페르소나 공감+브랜드 톤 반영 본문 (CTA 포함)
+[본문] 페르소나 공감+브랜드 톤 반영 본문 (CTA 반영)
 """
 
     return [

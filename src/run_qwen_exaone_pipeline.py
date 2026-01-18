@@ -334,6 +334,17 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     qwen_start = time.time()
     if q_generator is None:
         q_generator = _get_qwen_generator(args.qwen_model)
+        qwen_messages = q_generator.build_marketing_messages(
+            product.get('brand_name', ''),
+            product.get('name', ''),
+            persona,
+            product.get('reviews', []),
+            highlight_texts,
+            campaign_event_info=selected_event
+        )
+        print('=== QWEN INPUT (messages) ===')
+        for m in qwen_messages:
+            print(f"[{m.get('role','')}] {m.get('content','')}")
     q_draft, q_dur = q_generator.generate_marketing_draft(
         product.get('brand_name', ''),
         product.get('name', ''),
@@ -358,7 +369,7 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     crm_goal = load_crm_goal_meta(crm_goals, args.stage_index)
     bucket = select_stage_bucket(crm_categorized, args.stage_index)
     rag_start = time.time()
-    crm_snippets = rag_crm_snippets(bucket, q_draft[:500], top_k=args.top_k)
+    crm_snippets = rag_crm_snippets(bucket, q_draft[:500], top_k=1)
     rag_duration = time.time() - rag_start
 
     # Pick CRM style templates for Exaone
@@ -368,7 +379,7 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
 
     if candidates_pool:
         # Sample 2-3 templates
-        k = min(len(candidates_pool), random.randint(2, 3))
+        k = min(len(candidates_pool), 1)
         selected_templates = random.sample(candidates_pool, k)
 
     # Build template reference strings
@@ -395,6 +406,8 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     exa_prompt_text = "\n\n".join(
         [f"[{m.get('role','')}] {m.get('content','')}" for m in exa_messages]
     )
+    print('=== EXAONE PROMPT ===')
+    print(exa_prompt_text)
 
     # Exaone generation
     exa_start = time.time()
@@ -403,6 +416,8 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     else:
         exa_generator = _ensure_exaone_adapter(exa_generator)
     exa_output = exa_generator.generate(exa_messages)
+    print('=== EXAONE OUTPUT ===')
+    print(exa_output)
     exa_end = time.time()
     timeline.append({
         "step": "exaone_prompt",

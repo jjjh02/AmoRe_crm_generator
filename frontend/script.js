@@ -44,8 +44,10 @@ async function loadData() {
             fetch('./brand_images.json').then(r => r.json())
         ]);
         PRODUCTS = prod; BRANDS_DATA = brand; PERSONAS = persona; CAMPAIGN_EVENTS = camp; BRAND_IMAGES = brandImg;
-        renderBrands();
-    } catch (e) { console.error('Data load error:', e); renderBrands(); }
+        // Render both brand grids so they're ready for either mode
+        renderBrands(false);
+        renderBrands(true);
+    } catch (e) { console.error('Data load error:', e); renderBrands(false); renderBrands(true); }
 }
 
 function setupEvents() {
@@ -208,22 +210,46 @@ function updateSidebar() {
     }
     $('sidebar-settings').textContent = settingsText;
 
+    // AI Step status updates
+    if ($('sidebar-brief')) {
+        $('sidebar-brief').textContent = aiState.briefText ? '완료 ✓' : '-';
+    }
+    if ($('sidebar-draft')) {
+        $('sidebar-draft').textContent = aiState.draftTitle ? '완료 ✓' : '-';
+    }
+    if ($('sidebar-result')) {
+        $('sidebar-result').textContent = aiState.tunedMessages?.length > 0 ? `${aiState.tunedMessages.length}개` : '-';
+    }
+
     document.querySelectorAll('.progress-step').forEach(s => {
         const n = +s.dataset.step;
         s.classList.toggle('active', n === state.currentStep);
         s.classList.toggle('completed', n < state.currentStep);
+
+        // Disable steps that haven't been reached yet (for AI steps)
+        if (n > 3) {
+            const canNavigate = canNavigateToAIStep(n);
+            s.classList.toggle('disabled', !canNavigate);
+        }
     });
 
-    // Step 3 needs stage and style selected to proceed
+    // Step-specific navigation logic
     let canNext = false;
     if (state.currentStep === 1 && state.selectedBrand) canNext = true;
     if (state.currentStep === 2 && state.selectedProduct) canNext = true;
     if (state.currentStep === 3 && state.stageIndex !== null && state.styleIndex !== null) canNext = true;
+    if (state.currentStep === 4) canNext = true; // Brief 확인
+    if (state.currentStep === 5) canNext = true; // Draft 확인
+    if (state.currentStep === 6) canNext = false; // 마지막
     $('next-btn').disabled = !canNext;
     $('back-btn').disabled = state.currentStep === 1;
 
-    // Update next button text
-    $('next-btn').textContent = state.currentStep === 3 ? '메시지 생성' : '다음';
+    // Update next button text based on step
+    if (state.currentStep === 3) $('next-btn').textContent = '브리프 생성';
+    else if (state.currentStep === 4) $('next-btn').textContent = '초안 생성';
+    else if (state.currentStep === 5) $('next-btn').textContent = '메시지 생성';
+    else if (state.currentStep === 6) $('next-btn').textContent = '완료';
+    else $('next-btn').textContent = '다음';
 }
 
 function selectBrand(b) {
@@ -250,8 +276,38 @@ function selectProduct(id) {
     updateSidebar();
 }
 
+// Sidebar navigation helper functions
+function canNavigateToAIStep(step) {
+    // Can navigate to AI steps only if they have data
+    if (step === 4) return aiState.briefText !== '';
+    if (step === 5) return aiState.draftTitle !== '';
+    if (step === 6) return aiState.tunedMessages?.length > 0;
+    return true; // Steps 1-3 always navigable
+}
+
+function navigateToStep(targetStep) {
+    // For AI steps (4-6), check if they have data
+    if (targetStep > 3 && !canNavigateToAIStep(targetStep)) {
+        return; // Can't navigate to steps without data
+    }
+
+    // Can always go back to earlier steps
+    if (targetStep <= state.currentStep) {
+        goToStep(targetStep);
+        return;
+    }
+
+    // For forward navigation, use normal flow
+    if (targetStep === state.currentStep + 1) {
+        nextStep();
+    }
+}
+
 function nextStep() {
     if (state.currentStep === 3) { generateMessages(); return; }
+    if (state.currentStep === 4) { generateDraftFromBrief(); return; }
+    if (state.currentStep === 5) { generateTuningFromDraft(); return; }
+    if (state.currentStep === 6) { return; } // 마지막 단계
     goToStep(state.currentStep + 1);
 }
 
@@ -283,24 +339,206 @@ function goToStep(step) {
     updateSidebar();
 }
 
+// ------------------------------------------------------------------
+// Real AI Pipeline (Backend API Integration)
+// ------------------------------------------------------------------
+
+// Store AI results
+let aiState = {
+    briefText: '',
+    draftTitle: '',
+    draftBody: '',
+    tunedMessages: []
+};
+
 async function generateMessages() {
+    // Step 3에서 호출 → Step 4 (Brief 생성)로 이동
     const overlay = $('loading-overlay');
     overlay.style.display = 'flex';
 
-    const steps = ['load-step-1', 'load-step-2', 'load-step-3'];
-    for (let i = 0; i < steps.length; i++) {
-        steps.forEach((s, j) => {
-            $(s).classList.toggle('active', j === i);
-            $(s).classList.toggle('done', j < i);
-        });
-        await new Promise(r => setTimeout(r, 800));
-    }
-    steps.forEach(s => { $(s).classList.remove('active'); $(s).classList.add('done'); });
+    try {
+        // Step 1 API: Brief 생성
+        updateLoadingStep(0, 'active');
 
-    overlay.style.display = 'none';
-    renderPhoneMockups();
-    goToStep(4);
+        const eventInfo = state.selectedEvent ? {
+            name: state.selectedEvent.name,
+            detail: state.selectedEvent.detail
+        } : null;
+
+        const briefResult = await CRMStudioAPI.generateBrief(
+            state.selectedBrand,
+            state.selectedProduct?.name || '',
+            state.stageIndex || 0,
+            state.styleIndex || 0,
+            eventInfo
+        );
+
+        updateLoadingStep(0, 'done');
+
+        aiState.briefText = briefResult.data.brief_text;
+
+        overlay.style.display = 'none';
+
+        // Step 4로 이동 (Brief 확인)
+        $('brief-text-display').textContent = aiState.briefText;
+        goToStep(4);
+
+    } catch (error) {
+        overlay.style.display = 'none';
+        alert('브리프 생성 실패: ' + error.message);
+        console.error(error);
+    }
 }
+
+async function regenerateBrief() {
+    const feedback = $('brief-feedback-input').value.trim();
+    if (!feedback) {
+        alert('수정 요청을 입력해주세요');
+        return;
+    }
+
+    $('brief-result-card').classList.add('loading');
+    $('brief-text-display').textContent = '재생성 중...';
+
+    try {
+        const result = await CRMStudioAPI.refineBrief(aiState.briefText, feedback);
+        aiState.briefText = result.data.brief_text;
+        $('brief-text-display').textContent = aiState.briefText;
+        $('brief-feedback-input').value = '';
+    } catch (error) {
+        alert('재생성 실패: ' + error.message);
+    } finally {
+        $('brief-result-card').classList.remove('loading');
+    }
+}
+
+async function generateDraftFromBrief() {
+    // Step 4 → Step 5 (Draft 생성)
+    const overlay = $('loading-overlay');
+    overlay.style.display = 'flex';
+
+    try {
+        updateLoadingStep(1, 'active');
+
+        const result = await CRMStudioAPI.generateDraft(aiState.briefText);
+
+        updateLoadingStep(1, 'done');
+
+        aiState.draftTitle = result.data.title;
+        aiState.draftBody = result.data.body;
+
+        overlay.style.display = 'none';
+
+        // Step 5로 이동 (Draft 확인)
+        $('draft-title-display').textContent = aiState.draftTitle;
+        $('draft-body-display').textContent = aiState.draftBody;
+        $('brand-tone-display').textContent = (result.data.brand_tone || []).join(', ');
+        goToStep(5);
+
+    } catch (error) {
+        overlay.style.display = 'none';
+        alert('초안 생성 실패: ' + error.message);
+        console.error(error);
+    }
+}
+
+async function regenerateDraft() {
+    const feedback = $('draft-feedback-input').value.trim();
+    if (!feedback) {
+        alert('수정 요청을 입력해주세요');
+        return;
+    }
+
+    $('draft-result-card').classList.add('loading');
+
+    try {
+        const result = await CRMStudioAPI.refineDraft(
+            { title: aiState.draftTitle, body: aiState.draftBody },
+            feedback
+        );
+        aiState.draftTitle = result.data.title;
+        aiState.draftBody = result.data.body;
+        $('draft-title-display').textContent = aiState.draftTitle;
+        $('draft-body-display').textContent = aiState.draftBody;
+        $('draft-feedback-input').value = '';
+    } catch (error) {
+        alert('재생성 실패: ' + error.message);
+    } finally {
+        $('draft-result-card').classList.remove('loading');
+    }
+}
+
+async function generateTuningFromDraft() {
+    // Step 5 → Step 6 (Tuning 생성)
+    const overlay = $('loading-overlay');
+    overlay.style.display = 'flex';
+
+    try {
+        updateLoadingStep(2, 'active');
+        updateLoadingStep(3, 'active');
+
+        const result = await CRMStudioAPI.generateTuning({
+            title: aiState.draftTitle,
+            body: aiState.draftBody
+        });
+
+        updateLoadingStep(2, 'done');
+        updateLoadingStep(3, 'done');
+
+        aiState.tunedMessages = result.data.messages;
+
+        overlay.style.display = 'none';
+
+        // Step 6으로 이동 (결과)
+        renderPhoneMockupsFromAPI();
+        goToStep(6);
+
+    } catch (error) {
+        overlay.style.display = 'none';
+        alert('페르소나 튜닝 실패: ' + error.message);
+        console.error(error);
+    }
+}
+
+function renderPhoneMockupsFromAPI() {
+    const brand = state.selectedBrand;
+    const info = BRAND_IMAGES[brand] || {};
+    const color = info.color || '#3182F6';
+    const logo = info.logo_url || '';
+
+    $('phone-carousel').innerHTML = aiState.tunedMessages.map(m => `
+        <div class="phone-mockup">
+            <div class="iphone-frame">
+                <div class="iphone-screen">
+                    <div style="text-align:right;color:#fff;font-size:13px;margin-bottom:60px;padding-right:8px;">9:41</div>
+                    <div class="notif-card">
+                        <div class="notif-header">
+                            <div class="notif-icon" style="background:${m.color || color};">${logo ? `<img src="${logo}" style="width:14px;height:14px;">` : brand[0]}</div>
+                            <span class="notif-app">${brand}</span>
+                            <span class="notif-time">지금</span>
+                        </div>
+                        <div class="notif-title">${m.title}</div>
+                        <div class="notif-body">${m.body.replace(/\n/g, '<br>')}</div>
+                        <div class="persona-badge" style="background:${PERSONA_INFO[m.persona]?.bg || '#F4F0F7'};color:${m.color};">${m.label}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateLoadingStep(index, status) {
+    const steps = ['load-step-1', 'load-step-2', 'load-step-3', 'load-step-4'];
+    const id = steps[index];
+    if ($(id)) {
+        $(id).classList.add(status);
+        if (status === 'active') {
+            $(id).style.fontWeight = 'bold';
+        }
+    }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function renderPhoneMockups() {
     const brand = state.selectedBrand;
@@ -308,52 +546,93 @@ function renderPhoneMockups() {
     const color = info.color || '#3182F6';
     const logo = info.logo_url || '';
     const product = state.selectedProduct?.name || '제품';
-    const price = state.selectedProduct?.price ? parseInt(state.selectedProduct.price).toLocaleString() : '';
-    const eventName = state.selectedEvent?.name || '';
+    const priceStr = state.selectedProduct?.price ? parseInt(state.selectedProduct.price).toLocaleString() : '';
+    const stage = AARRR_KR[state.stageIndex] || '일반';
+    const style = STYLES_KR[state.styleIndex] || '정보형';
 
-    // Realistic persona-specific messages
-    const personaMessages = {
-        'Luxury_Lover': {
-            title: `[${brand}] VIP 고객님을 위한 특별 제안`,
-            body: `프리미엄 ${product}을 먼저 만나보세요.\n지금 구매 시 럭셔리 샘플 3종 증정 💎`
+    // --- Smart Templates based on AARRR Stage ---
+    const templates = {
+        '유입': { // Acquisition
+            title: `[${brand}] 첫 만남을 위한 특별한 선물 🎁`,
+            body: `${product}을(를) 경험해보세요.\n신규 회원 가입 시 웰컴 키트 증정!\n지금 바로 확인하기 👉`
         },
-        'Sensitive_Skin': {
-            title: `[${brand}] 민감 피부를 위한 맞춤 케어`,
-            body: `${product}은 저자극 테스트 완료 제품입니다.\n피부과 전문의 추천 포뮬러로 순하게 케어하세요 🌿`
+        '구매': { // Activation
+            title: `[${brand}] 망설이셨던 ${product}, 지금이 기회!`,
+            body: `단 3일간 진행되는 시크릿 혜택.\n${priceStr ? `정가 ₩${priceStr} → ` : ''}최대 15% 추가 할인 쿠폰 도착 💌\n품절 전에 만나보세요.`
         },
-        'Budget_Seeker': {
-            title: `[${brand}] ${eventName || '오늘만'} 특가!`,
-            body: `${product} ${price ? `정가 ₩${price}` : ''}\n지금 20% 할인 + 무료배송 ✨`
+        '재구매': { // Retention
+            title: `[${brand}] ${product} 잘 사용하고 계신가요?`,
+            body: `고객님을 위한 재구매 전용 혜택이 도착했어요.\n한 번 더 경험하는 ${brand}의 감동,\n지금 멤버십 혜택으로 만나보세요.`
         },
-        'Trend_Follower': {
-            title: `[${brand}] 인플루언서 PICK 🔥`,
-            body: `SNS에서 핫한 ${product}!\n#틱톡바이럴 #올영픽 지금 품절 전 득템하세요`
+        '매출': { // Revenue (Upselling)
+            title: `[${brand}] ${product}와 함께하면 더 좋은 아이템`,
+            body: `함께 쓰면 시너지 200%! ✨\n${brand} 베스트 셀러 듀오 세트를\nVIP 특별가로 준비했습니다.`
         },
-        'Natural_Beauty': {
-            title: `[${brand}] 자연이 선사하는 아름다움`,
-            body: `${product}에 담긴 청정 자연 성분.\n비건 인증 제품으로 건강한 뷰티 루틴을 완성하세요 🌱`
+        '추천': { // Referral
+            title: `[${brand}] 좋은 건 함께 나누세요 💖`,
+            body: `친구에게 ${product} 추천하고\n두 분 모두에게 10,000 포인트 적립!\n함께 예뻐지는 뷰티 루틴.`
+        },
+        'Custom': {
+            title: `[${brand}] 고객님을 위한 맞춤 제안`,
+            body: `${product}의 특별한 혜택을 확인해보세요.\n${state.selectedEvent ? state.selectedEvent.name + ' 기념' : ''} 특별 프로모션 진행 중!`
         }
     };
 
-    const msgs = PERSONAS.map(p => ({
-        name: p.name,
-        ...PERSONA_INFO[p.name],
-        ...(personaMessages[p.name] || { title: `[${brand}] 특별 혜택`, body: `${product} 지금 확인하세요` })
-    }));
+    // Style Adjustments (Tone)
+    const toneModifiers = {
+        '긴박': (t) => ({ title: `⏳ 마감 임박! ${t.title}`, body: `오늘 자정 종료! ${t.body}` }),
+        '정보': (t) => ({ title: `ℹ️ ${t.title}`, body: `${product} 핵심 성분 분석.\n${t.body}` }),
+        '감성': (t) => ({ title: `🌿 ${t.title}`, body: `당신의 일상을 빛내줄 ${product}.\n${t.body}` }),
+        '시즌': (t) => ({ title: `🍂 시즌 추천 ${t.title}`, body: `지금 계절에 딱 맞는 선택.\n${t.body}` }),
+        'FOMO': (t) => ({ title: `🔥 주문 폭주 ${t.title}`, body: `남은 수량이 얼마 없어요!\n${t.body}` })
+    };
 
-    // Add custom personas
+    let baseTmpl = templates[stage] || templates['Custom'];
+
+    // Apply Tone Modifier if exists
+    if (toneModifiers[style]) {
+        baseTmpl = toneModifiers[style](baseTmpl);
+    }
+
+    // Persona Variations (Applying base logic + Persona flavor)
+    const personaMessages = PERSONAS.map(p => {
+        let pTitle = baseTmpl.title;
+        let pBody = baseTmpl.body;
+
+        // Custom tweaks per persona
+        if (p.name === 'Luxury_Lover') {
+            pTitle = `💎 VIP Only: ${pTitle}`;
+            pBody = pBody + `\n프리미엄 패키징 무료 업그레이드.`;
+        } else if (p.name === 'Sensitive_Skin') {
+            pBody = `민감한 피부도 안심.\n` + pBody;
+        } else if (p.name === 'Budget_Seeker') {
+            pTitle = `💰 최대 혜택: ${pTitle}`;
+        } else if (p.name === 'Trend_Follower') {
+            pTitle = `🔥 SNS 화제: ${pTitle}`;
+            pBody = `#${brand.replace(/ /g, '')} #${product.replace(/ /g, '')}\n` + pBody;
+        }
+
+        return {
+            name: p.name,
+            ...PERSONA_INFO[p.name],
+            title: pTitle,
+            body: pBody
+        };
+    });
+
+    // Add custom personas with generic logic
     state.customPersonas.forEach(p => {
-        msgs.push({
+        personaMessages.push({
             name: p.name,
             label: '커스텀',
             bg: '#F4F0F7',
             color: '#9065B0',
-            title: `[${brand}] ${p.name}님께 드리는 제안`,
-            body: `${product} ${p.keywords ? `(${p.keywords})` : ''}\n특별한 혜택을 확인해보세요 ✨`
+            title: `[${p.name}님] ${baseTmpl.title}`,
+            body: baseTmpl.body + (p.keywords ? `\n\n키워드 반영: ${p.keywords}` : '')
         });
     });
 
-    $('phone-carousel').innerHTML = msgs.map(m => `
+    $('phone-carousel').innerHTML = personaMessages.map(m => `
         <div class="phone-mockup">
             <div class="iphone-frame">
                 <div class="iphone-screen">

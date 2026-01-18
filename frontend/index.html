@@ -48,34 +48,46 @@
 
             <aside class="app-sidebar">
                 <div class="progress-container">
-                    <div class="progress-step active" data-step="1">
+                    <div class="progress-step active clickable" data-step="1" onclick="navigateToStep(1)">
                         <div class="step-num">1</div>
                         <div class="step-text"><span class="step-label">브랜드</span><span class="step-value"
                                 id="sidebar-brand">선택 필요</span></div>
                     </div>
                     <div class="progress-line"></div>
-                    <div class="progress-step" data-step="2">
+                    <div class="progress-step clickable" data-step="2" onclick="navigateToStep(2)">
                         <div class="step-num">2</div>
                         <div class="step-text"><span class="step-label">제품</span><span class="step-value"
                                 id="sidebar-product">-</span></div>
                     </div>
                     <div class="progress-line"></div>
-                    <div class="progress-step" data-step="3">
+                    <div class="progress-step clickable" data-step="3" onclick="navigateToStep(3)">
                         <div class="step-num">3</div>
                         <div class="step-text"><span class="step-label">설정</span><span class="step-value"
                                 id="sidebar-settings">-</span></div>
                     </div>
+
+                    <!-- AI Generation Steps -->
+                    <div class="progress-divider"><span>AI 생성</span></div>
+
+                    <div class="progress-step clickable" data-step="4" onclick="navigateToStep(4)">
+                        <div class="step-num">📋</div>
+                        <div class="step-text"><span class="step-label">브리프</span><span class="step-value ai-step"
+                                id="sidebar-brief">-</span></div>
+                    </div>
                     <div class="progress-line"></div>
-                    <div class="progress-step" data-step="4">
-                        <div class="step-num">4</div>
-                        <div class="step-text"><span class="step-label">결과</span></div>
+                    <div class="progress-step clickable" data-step="5" onclick="navigateToStep(5)">
+                        <div class="step-num">✍️</div>
+                        <div class="step-text"><span class="step-label">초안</span><span class="step-value ai-step"
+                                id="sidebar-draft">-</span></div>
+                    </div>
+                    <div class="progress-line"></div>
+                    <div class="progress-step clickable" data-step="6" onclick="navigateToStep(6)">
+                        <div class="step-num">🎉</div>
+                        <div class="step-text"><span class="step-label">결과</span><span class="step-value ai-step"
+                                id="sidebar-result">-</span></div>
                     </div>
                 </div>
-                <div class="expert-info-panel" id="expert-info-panel" style="display: none;">
-                    <h4>입력 정보</h4>
-                    <div class="info-item"><span class="label">캠페인</span><span class="value" id="info-campaign">-</span>
-                    </div>
-                </div>
+
             </aside>
 
             <main class="main-content">
@@ -236,17 +248,72 @@
                     </div>
                 </section>
 
+                <!-- Step 4: AI 브리프 확인 -->
                 <section class="step-section" id="step-4">
+                    <div class="step-header">
+                        <h1>📋 마케팅 브리프 확인</h1>
+                        <p>AI가 생성한 브리프를 검토하고 수정하세요</p>
+                    </div>
+                    <div class="ai-result-card" id="brief-result-card">
+                        <div class="ai-result-content">
+                            <pre id="brief-text-display">브리프 생성 중...</pre>
+                        </div>
+                        <div class="ai-result-actions">
+                            <div class="feedback-row">
+                                <input type="text" id="brief-feedback-input" placeholder="수정 요청 (예: USP에 '순한 성분' 추가해줘)">
+                                <button class="action-btn secondary" onclick="regenerateBrief()">🔄 재생성</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-info-box">
+                        <span class="info-label">💡 TIP</span>
+                        <span>브리프가 마음에 들면 "다음"을 눌러 초안 생성을 진행하세요.</span>
+                    </div>
+                </section>
+
+                <!-- Step 5: AI 초안 확인 -->
+                <section class="step-section" id="step-5">
+                    <div class="step-header">
+                        <h1>✍️ 메시지 초안 확인</h1>
+                        <p>브랜드 톤이 반영된 초안을 검토하세요</p>
+                    </div>
+                    <div class="ai-result-card" id="draft-result-card">
+                        <div class="draft-preview">
+                            <div class="draft-title-box">
+                                <label>제목</label>
+                                <div id="draft-title-display">제목 생성 중...</div>
+                            </div>
+                            <div class="draft-body-box">
+                                <label>본문</label>
+                                <div id="draft-body-display">본문 생성 중...</div>
+                            </div>
+                        </div>
+                        <div class="ai-result-actions">
+                            <div class="feedback-row">
+                                <input type="text" id="draft-feedback-input" placeholder="수정 요청 (예: 이모지 줄이고 차분하게)">
+                                <button class="action-btn secondary" onclick="regenerateDraft()">🔄 재생성</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-info-box">
+                        <span class="info-label">🎨 브랜드 톤</span>
+                        <span id="brand-tone-display">-</span>
+                    </div>
+                </section>
+
+                <!-- Step 6: 페르소나별 결과 -->
+                <section class="step-section" id="step-6">
                     <div class="step-header center">
-                        <h1>메시지 생성 완료</h1>
-                        <p>5개 페르소나별 맞춤 메시지</p>
+                        <h1>🎉 페르소나별 메시지 완료</h1>
+                        <p>각 고객군에 맞춤화된 메시지</p>
                     </div>
                     <div class="result-scroll-container">
                         <div class="phone-carousel" id="phone-carousel"></div>
                     </div>
-                    <div class="result-actions"><button class="action-btn secondary"
-                            onclick="resetWizard()">다시</button><button class="action-btn primary"
-                            onclick="exportAll()">내보내기</button></div>
+                    <div class="result-actions">
+                        <button class="action-btn secondary" onclick="resetWizard()">다시</button>
+                        <button class="action-btn primary" onclick="exportAll()">내보내기</button>
+                    </div>
                 </section>
             </main>
 
@@ -262,10 +329,12 @@
                     <div class="loading-step" id="load-step-1">분석</div>
                     <div class="loading-step" id="load-step-2">추출</div>
                     <div class="loading-step" id="load-step-3">최적화</div>
+                    <div class="loading-step" id="load-step-4">검증</div>
                 </div>
             </div>
         </div>
     </div>
+    <script src="api.js"></script>
     <script src="script.js"></script>
 </body>
 

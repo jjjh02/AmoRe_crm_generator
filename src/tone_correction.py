@@ -40,6 +40,46 @@ FOMO_STAGE_KEYS = {
     4: '5_Referral_공유확산_압박',
 }
 
+PERSONA_NAMES = [
+    "Budget_Seeker",
+    "Luxury_Lover",
+    "Sensitive_Skin",
+    "Trend_Follower",
+    "Natural_Beauty",
+]
+
+# 페르소나 변형 (실제 샘플 기반)
+PERSONA_VARIANTS = [
+    "budget seeker", "budget_seeker",
+    "luxury lover", "luxury_lover",
+    "sensitive skin", "sensitive_skin",
+    "trend follower", "trend_follower",
+    "natural beauty", "natural_beauty",
+    "user_name",
+]
+
+# 튀는 생활/마케팅 영어 (부분 차단)
+ENGLISH_TRIGGERS = [
+    "everyday",
+    "daily",
+    "routine",
+    "versatile",
+    "태평양제약",
+    "astrocypercol",
+    "essential",
+    "ultimate",
+    "available",
+    "suggestion",
+    "lightweight",
+    "clinical-grade",
+]
+
+# 메타/대괄호 표현
+META_TOKENS = [
+    "[", "]", "{", "}", "(", ")"
+    "[제목]", "[CTA]",
+    "[감성적", "[행동", "[보고]"
+]
 
 @lru_cache(maxsize=None)
 def load_json(path: str) -> Any:
@@ -188,6 +228,13 @@ def get_device() -> str:
         return "cuda"
     return "cpu"
 
+def build_bad_words_ids(tokenizer, phrases):
+    bad_words_ids = []
+    for p in phrases:
+        ids = tokenizer.encode(p, add_special_tokens=False)
+        if len(ids) > 0:
+            bad_words_ids.append(ids)
+    return bad_words_ids
 
 class ExaoneToneCorrector:
     """Exaone 로컬 모델을 통한 톤 보정."""
@@ -210,6 +257,14 @@ class ExaoneToneCorrector:
         print(f"[Exaone] 모델 로딩 중: {model_name}...")
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+
+        # bad_words 디코딩 레벨 제한
+        self.bad_words_ids = []
+        self.bad_words_ids += build_bad_words_ids(self.tokenizer, PERSONA_NAMES)
+        self.bad_words_ids += build_bad_words_ids(self.tokenizer, PERSONA_VARIANTS)
+        self.bad_words_ids += build_bad_words_ids(self.tokenizer, ENGLISH_TRIGGERS)
+        self.bad_words_ids += build_bad_words_ids(self.tokenizer, META_TOKENS)
+
 
         dtype = torch.float16 if self.device == "cuda" else torch.float32
         kwargs = {"trust_remote_code": True, "torch_dtype": dtype}
@@ -253,6 +308,7 @@ class ExaoneToneCorrector:
                 top_p=0.9,
                 do_sample=True,
                 repetition_penalty=1.1,
+                bad_words_ids=self.bad_words_ids,
                 pad_token_id=self.tokenizer.eos_token_id
             )
 

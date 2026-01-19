@@ -3,3 +3,27 @@ uvicorn>=0.27.0
 httpx>=0.26.0
 python-dotenv>=1.0.0
 pydantic>=2.5.0
+# Core runtime
+torch
+transformers[sentencepiece]
+accelerate
+sentence-transformers
+numpy
+
+# Training / finetuning
+datasets
+evaluate
+trl
+peft
+bitsandbytes
+
+# Server
+fastapi
+uvicorn
+pyngrok
+pydantic
+python-dotenv
+
+# Utilities
+requests
+pillow

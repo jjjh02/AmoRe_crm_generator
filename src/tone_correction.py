@@ -148,11 +148,11 @@ def format_fomo_examples(fomo_data: Dict[str, Any], stage_index: int, limit: int
     return examples
 
 
-def pick_brand_story(brand_stories: Dict[str, Any], brand_name: str) -> Dict[str, Any]:
-    if brand_name in brand_stories:
-        return brand_stories[brand_name]
+def pick_brand_params(brand_params: Dict[str, Any], brand_name: str) -> Dict[str, Any]:
+    if brand_name in brand_params:
+        return brand_params[brand_name]
     # name_en fallback
-    for b in brand_stories.values():
+    for b in brand_params.values():
         if str(b.get('name_en','')).lower() == brand_name.lower():
             return b
     return {}
@@ -166,59 +166,76 @@ def load_crm_goal_meta(crm_goals: Dict[str, Any], stage_index: int) -> Dict[str,
 def build_exaone_prompt(
     qwen_draft: str,
     persona: Dict[str, Any],
-    brand_story: Dict[str, Any],
+    brand_params: Dict[str, Any],
     crm_goal: Dict[str, Any],
     stage_index: int,
     crm_snippets: List[Dict[str, Any]],
     style_examples: List[str] = [],
 ) -> List[Dict[str, str]]:
     stage_name = STAGE_ORDER[stage_index]
-    persona_summary = summarize_persona(persona)
     stage_kr = crm_goal.get('stage_kr', '')
+    objective = crm_goal.get('objective', '')
+    target_state = crm_goal.get('target_state', '')
     allowed = ', '.join(crm_goal.get('allowed_context', []))
     forbidden = ', '.join(crm_goal.get('forbidden_context', []))
-    tone_keywords = ', '.join(brand_story.get('tone_keywords', []))
-    brand_story_text = brand_story.get('story', '')
+    cta_style = crm_goal.get('cta_style', '')
 
-    prompt_sections = []
-    if crm_snippets:
-        crm_refs = '\n'.join([f"- ({round(s['score'],3)}) {s['text']}" for s in crm_snippets])
-        prompt_sections.append(f"[CRM 유사 사례 (RAG)]\n{crm_refs}")
-    
+    brand_info_lines = []
+    if isinstance(brand_params, dict):
+        for key in (
+            "emotion_level",
+            "sentence_density",
+            "tone_style",
+            "certainty_level",
+            "rhythm",
+            "brand_presence",
+            "cta_pressure",
+        ):
+            value = brand_params.get(key)
+            if value:
+                brand_info_lines.append(f"- {key}: {value}")
+    brand_info = "\n".join(brand_info_lines) if brand_info_lines else "- (없음)"
+    style_section = ""
     if style_examples:
         template_refs = '\n'.join([f"--- [참고 템플릿] ---\n{t}" for t in style_examples])
-        prompt_sections.append(f"[CRM 캠페인 스타일 참고]\n{template_refs}")
+        style_section = (
+            "[CRM 캠페인 스타일 참고]\n"
+            "아래 사례는 문장 구조와 흐름만 참고합니다.\n"
+            f"{template_refs}\n\n"
+        )
 
-    extra_context = "\n\n".join(prompt_sections)
-
-    user_prompt = f"""다음 초안을 브랜드 톤에 맞게 발신 목적을 고려하여 보정하세요.
-
-[입력 초안]
-{qwen_draft}
-
-[브랜드 스토리/톤]
-{brand_story_text}
-톤 키워드: {tone_keywords}
-
-[발신 목적]
-스테이지: {stage_name} ({stage_kr})
-허용 맥락: {allowed}
-금지 맥락: {forbidden}
-CTA 스타일: {crm_goal.get('cta_style','')}
-
-{extra_context}
-
-규칙:
-1) 브랜드 톤 키워드와 발신 목적을 반영해 어휘와 문장 리듬을 조정합니다.
-2) CTA 스타일을 적극 반영하세요.
-3) 출력 형식은 아래 두 줄입니다. 레이블을 그대로 포함하세요.
-4) 영어는 줄이고 최대한 한국어로 작성하세요.
-[제목] 한 줄 요약 제목
-[본문] 페르소나 공감+브랜드 톤 반영 본문 (CTA 반영)
-"""
+    system_prompt = (
+        "당신은 생성자가 아닌 편집기(editor)입니다.\n"
+        "입력 초안의 의미를 유지한 채,\n"
+        "어휘와 문장 리듬만 조정합니다."
+    )
+    user_prompt = (
+        "다음 초안을 재작성하지 말고,\n"
+        "의미를 바꾸지 않는 선에서 표현만 다듬으세요.\n\n"
+        "[입력 초안]\n"
+        f"{qwen_draft}\n\n"
+        "[브랜드 정보]\n"
+        f"{brand_info}\n\n"
+        "[발신 목적]\n"
+        f"스테이지: {stage_name} ({stage_kr})\n"
+        f"허용 맥락: {allowed}\n"
+        f"금지 맥락: {forbidden}\n"
+        f"CTA 스타일: {cta_style}\n\n"
+        f"{style_section}"
+        "규칙:\n"
+        "1) 입력 초안의 의미를 유지한 채,\n"
+        "   브랜드 톤과 발신 목적에 맞게 어휘와 문장 리듬만 조정합니다.\n"
+        "   (새로운 효과, 기능, 결과를 추가하지 않습니다.)\n\n"
+        "2) CTA는 1줄을 반드시 포함하세요.\n\n"
+        "3) 출력 형식은 아래 두 줄을 그대로 사용하세요.\n"
+        "   레이블과 형식을 변경하지 마세요.\n\n"
+        "4) 영어 사용은 금지하며, 한국어로만 작성하세요.\n"
+        "[제목] 한 줄 요약 제목\n"
+        "[본문] 페르소나 공감 + 브랜드 톤 반영 본문 (CTA 포함)"
+    )
 
     return [
-        {"role": "system", "content": "당신은 CRM 카피라이터이자 톤 보정 전문가입니다. 간결하고 명료하게 한국어로 답하세요."},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
     ]
 
@@ -367,7 +384,7 @@ def main():
     parser.add_argument('--draft_path', help='Qwen 마케팅 초안 파일 경로(txt 또는 json)', required=False)
     parser.add_argument('--draft_text', help='직접 입력하는 초안 텍스트', required=False)
     parser.add_argument('--persona', required=True, help='페르소나 인덱스(0~) 또는 이름')
-    parser.add_argument('--brand', required=True, help='브랜드명 (brand_stories.json 키)')
+    parser.add_argument('--brand', required=True, help='브랜드명 (brand_params.json 키)')
     parser.add_argument('--stage_index', type=int, required=True, help='발신 목적 인덱스 (0~4)')
     parser.add_argument('--top_k', type=int, default=5, help='CRM RAG Top-K')
     parser.add_argument('--model_name', default="LGAI-EXAONE/EXAONE-3.0-7.8B-Instruct", help='Exaone 로컬 모델 이름')
@@ -389,7 +406,7 @@ def main():
         raise ValueError('draft_text 또는 draft_path 중 하나는 필요합니다.')
 
     personas = load_json(os.path.join(data_dir, 'personas.json'))
-    brand_stories = load_json(os.path.join(data_dir, 'brand_stories.json'))
+    brand_params = load_json(os.path.join(data_dir, 'brand_params.json'))
     crm_goals = load_json(os.path.join(data_dir, 'crm_goals.json'))
     crm_categorized = load_json(os.path.join(data_dir, 'crm_analysis_results_categorized.json'))
     crm_categorized = load_json(os.path.join(data_dir, 'crm_analysis_results_categorized.json'))
@@ -398,7 +415,7 @@ def main():
     fomo_data = integrated_templates.get('FOMO_Psychology_Style', {}).get('content', {})
 
     persona = find_persona(personas, args.persona)
-    brand_story = pick_brand_story(brand_stories, args.brand)
+    brand_params_item = pick_brand_params(brand_params, args.brand)
     crm_goal = load_crm_goal_meta(crm_goals, args.stage_index)
     bucket = select_stage_bucket(crm_categorized, args.stage_index)
 
@@ -409,11 +426,10 @@ def main():
     messages = build_exaone_prompt(
         qwen_draft=qwen_draft,
         persona=persona,
-        brand_story=brand_story,
+        brand_params=brand_params_item,
         crm_goal=crm_goal,
         stage_index=args.stage_index,
         crm_snippets=crm_snippets,
-        fomo_examples=fomo_examples,
     )
 
     generator = ExaoneToneCorrector(model_name=args.model_name)

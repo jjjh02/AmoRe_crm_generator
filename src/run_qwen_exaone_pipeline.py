@@ -29,7 +29,7 @@ from generate_marketing import LocalQwenGenerator, find_persona, find_product, l
 from tone_correction import (  # noqa: E402
     build_exaone_prompt,
     ExaoneToneCorrector,
-    pick_brand_story,
+    pick_brand_params,
     load_crm_goal_meta,
     select_stage_bucket,
     rag_crm_snippets,
@@ -229,7 +229,7 @@ def _load_data(base):
     return {
         "personas": load_json(os.path.join(data_dir, 'personas.json')),
         "products": load_json(os.path.join(data_dir, 'products.json')),
-        "brand_stories": load_json(os.path.join(data_dir, 'brand_stories.json')),
+        "brand_params": load_json(os.path.join(data_dir, 'brand_params.json')),
         "crm_goals": load_json(os.path.join(data_dir, 'crm_goals.json')),
         "crm_categorized": load_json(os.path.join(data_dir, 'crm_analysis_results_categorized.json')),
         "campaign_events": load_json(os.path.join(data_dir, 'campaign_events.json')),
@@ -307,7 +307,7 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
 
     personas = data['personas']
     products = data['products']
-    brand_stories = data['brand_stories']
+    brand_params = data['brand_params']
     crm_goals = data['crm_goals']
     crm_categorized = data['crm_categorized']
     campaign_events = data['campaign_events']
@@ -365,7 +365,7 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     })
 
     # Exaone prompt inputs (with RAG snippets)
-    brand_story = pick_brand_story(brand_stories, args.brand)
+    brand_params_item = pick_brand_params(brand_params, args.brand)
     crm_goal = load_crm_goal_meta(crm_goals, args.stage_index)
     bucket = select_stage_bucket(crm_categorized, args.stage_index)
     rag_start = time.time()
@@ -396,7 +396,7 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     exa_messages = build_exaone_prompt(
         qwen_draft=q_draft,
         persona=persona,
-        brand_story=brand_story,
+        brand_params=brand_params_item,
         crm_goal=crm_goal,
         stage_index=args.stage_index,
         crm_snippets=crm_snippets,
@@ -541,7 +541,7 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--persona', required=False, help='Persona index (0~) or name')
-    parser.add_argument('--brand', required=False, help='Brand name (brand_stories.json key)')
+    parser.add_argument('--brand', required=False, help='Brand name (brand_params.json key)')
     parser.add_argument('--product', required=False, help='Product name (partial match allowed)')
     parser.add_argument('--stage_index', type=int, required=False, help='CRM stage index (0~4)')
     parser.add_argument('--top_k', type=int, default=3, help='RAG Top-K and review Top-K')

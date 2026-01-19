@@ -1,0 +1,202 @@
+{
+    "Sulwhasoo": {
+    "emotion_level": "낮음",
+    "sentence_density": "정보 중심",
+    "tone_style": "설명형",
+    "certainty_level": "관찰",
+    "rhythm": "차분",
+    "brand_presence": "간접",
+    "cta_pressure": "약"
+    },
+    "Laneige": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "대화형",
+    "certainty_level": "암시",
+    "rhythm": "경쾌",
+    "brand_presence": "간접",
+    "cta_pressure": "중"
+    },
+    "Innisfree": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "제안형",
+    "certainty_level": "관찰",
+    "rhythm": "보통",
+    "brand_presence": "간접",
+    "cta_pressure": "약"
+    },
+    "HERA": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "제안형",
+    "certainty_level": "암시",
+    "rhythm": "보통",
+    "brand_presence": "간접",
+    "cta_pressure": "중"
+    },
+    "IOPE": {
+    "emotion_level": "낮음",
+    "sentence_density": "정보 중심",
+    "tone_style": "설명형",
+    "certainty_level": "관찰",
+    "rhythm": "차분",
+    "brand_presence": "최소",
+    "cta_pressure": "약"
+    },
+    "Aestura": {
+    "emotion_level": "낮음",
+    "sentence_density": "정보 중심",
+    "tone_style": "설명형",
+    "certainty_level": "관찰",
+    "rhythm": "차분",
+    "brand_presence": "최소",
+    "cta_pressure": "약"
+    },
+    "Etude": {
+    "emotion_level": "높음",
+    "sentence_density": "감성 중심",
+    "tone_style": "대화형",
+    "certainty_level": "암시",
+    "rhythm": "경쾌",
+    "brand_presence": "전면",
+    "cta_pressure": "중"
+    },
+    "Primera": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "제안형",
+    "certainty_level": "관찰",
+    "rhythm": "보통",
+    "brand_presence": "간접",
+    "cta_pressure": "약"
+    },
+    "Illiyoon": {
+    "emotion_level": "낮음",
+    "sentence_density": "정보 중심",
+    "tone_style": "설명형",
+    "certainty_level": "관찰",
+    "rhythm": "차분",
+    "brand_presence": "최소",
+    "cta_pressure": "약"
+    },
+    "Hanyul": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "제안형",
+    "certainty_level": "관찰",
+    "rhythm": "보통",
+    "brand_presence": "간접",
+    "cta_pressure": "약"
+    },
+    "Espoir": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "대화형",
+    "certainty_level": "암시",
+    "rhythm": "경쾌",
+    "brand_presence": "전면",
+    "cta_pressure": "중"
+    },
+    "COSRX": {
+    "emotion_level": "낮음",
+    "sentence_density": "정보 중심",
+    "tone_style": "설명형",
+    "certainty_level": "관찰",
+    "rhythm": "차분",
+    "brand_presence": "최소",
+    "cta_pressure": "약"
+    },
+    "Ryo": {
+    "emotion_level": "중간",
+    "sentence_density": "정보 중심",
+    "tone_style": "설명형",
+    "certainty_level": "관찰",
+    "rhythm": "보통",
+    "brand_presence": "간접",
+    "cta_pressure": "약"
+    },
+    "MiseEnScene": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "제안형",
+    "certainty_level": "암시",
+    "rhythm": "경쾌",
+    "brand_presence": "간접",
+    "cta_pressure": "중"
+    },
+    "HappyBath": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "대화형",
+    "certainty_level": "관찰",
+    "rhythm": "부드러움",
+    "brand_presence": "간접",
+    "cta_pressure": "약"
+    },
+    "Mamonde": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "제안형",
+    "certainty_level": "관찰",
+    "rhythm": "부드러움",
+    "brand_presence": "간접",
+    "cta_pressure": "약"
+    },
+    "Odyssey": {
+    "emotion_level": "중간",
+    "sentence_density": "정보 중심",
+    "tone_style": "설명형",
+    "certainty_level": "암시",
+    "rhythm": "보통",
+    "brand_presence": "간접",
+    "cta_pressure": "중"
+    },
+    "VitalBeauty": {
+    "emotion_level": "낮음",
+    "sentence_density": "정보 중심",
+    "tone_style": "설명형",
+    "certainty_level": "관찰",
+    "rhythm": "차분",
+    "brand_presence": "간접",
+    "cta_pressure": "약"
+    },
+    "MEDIHEAL": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "제안형",
+    "certainty_level": "암시",
+    "rhythm": "보통",
+    "brand_presence": "간접",
+    "cta_pressure": "중"
+    },
+    "MakeON": {
+    "emotion_level": "낮음",
+    "sentence_density": "정보 중심",
+    "tone_style": "설명형",
+    "certainty_level": "관찰",
+    "rhythm": "차분",
+    "brand_presence": "최소",
+    "cta_pressure": "약"
+    },
+    "AMOREPACIFIC": {
+    "emotion_level": "낮음",
+    "sentence_density": "정보 중심",
+    "tone_style": "설명형",
+    "certainty_level": "관찰",
+    "rhythm": "차분",
+    "brand_presence": "간접",
+    "cta_pressure": "약"
+    },
+    "AP Beauty": {
+    "emotion_level": "중간",
+    "sentence_density": "균형",
+    "tone_style": "제안형",
+    "certainty_level": "관찰",
+    "rhythm": "보통",
+    "brand_presence": "간접",
+    "cta_pressure": "약"
+    }
+    }
+    
+    

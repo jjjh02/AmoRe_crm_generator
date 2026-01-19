@@ -37,8 +37,10 @@ class PersonaMessage(BaseModel):
 class Step1BriefRequest(BaseModel):
     brand_name: str = Field(..., description="브랜드명")
     product_name: str = Field(..., description="제품명 (부분 일치 검색)")
-    stage_index: int = Field(..., ge=0, le=4, description="AARRR 스테이지 인덱스 (0-4)")
-    style_index: int = Field(0, ge=0, le=5, description="스타일 인덱스 (0-5)")
+    stage_index: int = Field(..., ge=0, description="AARRR 스테이지 인덱스 (0-4 기본, 5+ 커스텀)")
+    style_index: int = Field(0, ge=0, description="스타일 인덱스 (0-4 기본, 5+ 커스텀)")
+    custom_stage_name: Optional[str] = Field(None, description="커스텀 스테이지명 (스테이지 인덱스가 5 이상일 때)")
+    custom_style_name: Optional[str] = Field(None, description="커스텀 스타일명 (스타일 인덱스가 5 이상일 때)") 
     event: Optional[EventInfo] = Field(None, description="이벤트 정보 (선택)")
 
 

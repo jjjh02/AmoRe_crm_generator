@@ -58,7 +58,7 @@ async function apiRequest(endpoint, options = {}) {
 /**
  * Step 1: 마케팅 브리프 생성
  */
-async function generateBrief(brandName, productName, stageIndex, styleIndex, event = null) {
+async function generateBrief(brandName, productName, stageIndex, styleIndex, event = null, customStageName = null, customStyleName = null) {
     const body = {
         brand_name: brandName,
         product_name: productName,
@@ -68,6 +68,12 @@ async function generateBrief(brandName, productName, stageIndex, styleIndex, eve
 
     if (event) {
         body.event = event;
+    }
+    if (customStageName) {
+        body.custom_stage_name = customStageName;
+    }
+    if (customStyleName) {
+        body.custom_style_name = customStyleName;
     }
 
     const result = await apiRequest('/step1/brief', {

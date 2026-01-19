@@ -1254,3 +1254,100 @@ body {
 .progress-step.completed .step-value.ai-step {
     color: var(--toss-blue);
 }
+
+/* Editable Brief/Draft Fields */
+#brief-text-display {
+    width: 100%;
+    padding: 16px;
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--toss-gray-700);
+    background: var(--toss-gray-50);
+    border: 1px solid var(--toss-gray-200);
+    border-radius: var(--radius-md);
+    resize: vertical;
+}
+
+#brief-text-display:focus {
+    outline: none;
+    border-color: var(--toss-blue);
+    background: var(--toss-white);
+}
+
+#draft-title-display {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--toss-black);
+    background: var(--toss-white);
+    border: 1px solid var(--toss-gray-200);
+    border-radius: var(--radius-sm);
+}
+
+#draft-title-display:focus {
+    outline: none;
+    border-color: var(--toss-blue);
+}
+
+#draft-body-display {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--toss-black);
+    background: var(--toss-white);
+    border: 1px solid var(--toss-gray-200);
+    border-radius: var(--radius-sm);
+    resize: vertical;
+}
+
+#draft-body-display:focus {
+    outline: none;
+    border-color: var(--toss-blue);
+}
+
+/* Inline Input Box for Custom Stage/Style */
+.inline-input-box {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--toss-gray-50);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--toss-gray-200);
+}
+
+.inline-input-box input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--toss-gray-200);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+}
+
+.inline-input-box input:focus {
+    outline: none;
+    border-color: var(--toss-blue);
+}
+
+.inline-input-box .action-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+/* Step 3 카드 간격 */
+#step-3 .settings-container {
+    margin-bottom: 24px;
+}
+
+#step-3 > .settings-card {
+    margin-bottom: 20px;
+}
+
+#step-3 #expert-persona-creator {
+    margin-top: 32px;
+}

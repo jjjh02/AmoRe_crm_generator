@@ -93,9 +93,16 @@ async def create_brief(request: Step1BriefRequest):
         # CRM 목표
         crm_goal = DataService.get_crm_goal(request.stage_index)
         
-        # 스테이지 정보
-        stage_name = STAGE_ORDER[request.stage_index] if 0 <= request.stage_index < len(STAGE_ORDER) else "Acquisition"
-        stage_kr = STAGE_KR[request.stage_index] if 0 <= request.stage_index < len(STAGE_KR) else "획득"
+        # 스테이지 정보 (커스텀 스테이지 지원)
+        if request.custom_stage_name:
+            stage_name = "Custom"
+            stage_kr = request.custom_stage_name
+        elif 0 <= request.stage_index < len(STAGE_ORDER):
+            stage_name = STAGE_ORDER[request.stage_index]
+            stage_kr = STAGE_KR[request.stage_index]
+        else:
+            stage_name = "Custom"
+            stage_kr = "커스텀"
         
         # 이벤트 정보
         event = None
@@ -420,38 +427,70 @@ async def refine_tuning(request: Step3RefineRequest):
 # ===========================
 
 def parse_title_body(text: str) -> tuple:
-    """LLM 출력에서 [제목]과 [본문] 파싱"""
+    """LLM 출력에서 [제목]과 [본문] 파싱 - 여러 패턴 지원"""
+    import re
+    
+    # 1. 정규식 패턴들 (다양한 LLM 출력 형식 지원)
+    patterns = [
+        # [제목] / [본문] 형식
+        r'\[제목\]\s*\n?(.*?)\n+\[본문\]\s*\n?(.*)',
+        # **제목** / **본문** 형식
+        r'\*\*제목\*\*[:\s]*\n?(.*?)\n+\*\*본문\*\*[:\s]*\n?(.*)',
+        # 제목: / 본문: 형식
+        r'제목[:\s]*\n?(.*?)\n+본문[:\s]*\n?(.*)',
+        # Title: / Body: 형식
+        r'[Tt]itle[:\s]*\n?(.*?)\n+[Bb]ody[:\s]*\n?(.*)',
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+        if match:
+            title = match.group(1).strip()
+            body = match.group(2).strip()
+            # 불필요한 마크다운 제거
+            title = re.sub(r'^[\*\#\-\s]+', '', title)
+            body = re.sub(r'^[\*\#\-\s]+', '', body)
+            # 끝에 불필요한 설명 제거 (--- 이후)
+            body = re.split(r'\n---\n|\n\*\*', body)[0].strip()
+            if title:
+                return title, body
+    
+    # 2. 줄 단위 파싱 (fallback)
     title = ""
     body = ""
-    
     lines = text.strip().split("\n")
     current_section = None
     
     for line in lines:
         line_stripped = line.strip()
         
-        if "[제목]" in line_stripped:
+        # 섹션 감지
+        if "[제목]" in line_stripped or "제목:" in line_stripped:
             current_section = "title"
-            # 같은 줄에 내용이 있는 경우
-            content = line_stripped.replace("[제목]", "").strip()
+            content = re.sub(r'\[제목\]|제목[:\s]*', '', line_stripped).strip()
             if content:
                 title = content
-        elif "[본문]" in line_stripped:
+        elif "[본문]" in line_stripped or "본문:" in line_stripped:
             current_section = "body"
-            content = line_stripped.replace("[본문]", "").strip()
+            content = re.sub(r'\[본문\]|본문[:\s]*', '', line_stripped).strip()
             if content:
                 body = content
-        elif current_section == "title" and not title:
+        elif line_stripped.startswith("---"):
+            break  # 구분선 이후는 무시
+        elif current_section == "title" and not title and line_stripped:
             title = line_stripped
-        elif current_section == "body":
+        elif current_section == "body" and line_stripped:
             if body:
                 body += "\n" + line_stripped
             else:
                 body = line_stripped
     
-    # 파싱 실패 시 전체 텍스트를 본문으로
+    # 3. 최종 fallback: 첫 줄 = 제목, 나머지 = 본문
     if not title and not body:
-        body = text
+        lines = [l.strip() for l in text.strip().split("\n") if l.strip()]
+        if lines:
+            title = lines[0]
+            body = "\n".join(lines[1:]) if len(lines) > 1 else ""
     
     return title, body
 

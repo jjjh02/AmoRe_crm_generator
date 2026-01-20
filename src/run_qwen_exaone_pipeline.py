@@ -25,17 +25,19 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(__file__))
 
 from rag_utils import build_persona_query, extract_candidate_texts, extract_highlight_snippet, vectorize_texts, cosine  # noqa: E402
-from generate_marketing import LocalQwenGenerator, find_persona, find_product, load_json  # noqa: E402
+from generate_marketing import find_persona, find_product, load_json  # noqa: E402
 from tone_correction import (  # noqa: E402
     build_exaone_prompt,
-    ExaoneToneCorrector,
     pick_brand_story,
     load_crm_goal_meta,
     select_stage_bucket,
     rag_crm_snippets,
-    format_fomo_examples,
     STAGE_ORDER,
 )
+from llm_utils import get_llm_generator  # noqa: E402
+
+from openrouter_utils import OpenRouterGenerator  # noqa: E402
+
 
 
 def top_highlights_for_product(persona, product, top_k=3):
@@ -103,6 +105,11 @@ _TIMING_AGG = {
 
 
 def _get_qwen_generator(model_name):
+    if ":" in model_name or "/" in model_name and not model_name.startswith("Qwen/"):
+        # OpenRouter 모델로 간주 (예: google/gemini-2.0-flash-exp:free)
+        print(f"[OpenRouter] 사용: {model_name}")
+        return OpenRouterGenerator(model_name=model_name)
+        
     if not CACHE_ENABLED:
         return LocalQwenGenerator(model_name=model_name, use_cache=False)
     cached = _QWEN_GENERATOR_CACHE.get(model_name)
@@ -114,6 +121,11 @@ def _get_qwen_generator(model_name):
 
 
 def _get_exaone_generator(model_name):
+    if ":" in model_name or "/" in model_name and not model_name.startswith("LGAI-EXAONE/"):
+        # OpenRouter 모델로 간주
+        print(f"[OpenRouter] 사용: {model_name}")
+        return OpenRouterGenerator(model_name=model_name)
+
     if not CACHE_ENABLED:
         generator = ExaoneToneCorrector(model_name=model_name, use_cache=False)
         return _ensure_exaone_adapter(generator)
@@ -127,21 +139,19 @@ def _get_exaone_generator(model_name):
 
 
 def _ensure_exaone_adapter(generator, adapter_id=EXAONE_ADAPTER_ID):
-    if not adapter_id:
+    if not adapter_id or not hasattr(generator, "model") or not model_is_exaone(generator.model_name):
         return generator
-    if getattr(generator, "_adapter_id", None) == adapter_id:
-        return generator
+    # Only load adapter for LGAI-EXAONE local models
     try:
         from peft import PeftModel
-    except ImportError as exc:
-        raise RuntimeError("peft is required to load Exaone adapters.") from exc
+    except ImportError:
+        return generator
+    
     generator.model = PeftModel.from_pretrained(generator.model, adapter_id)
-    try:
-        generator.model.eval()
-    except Exception:
-        pass
-    generator._adapter_id = adapter_id
     return generator
+
+def model_is_exaone(model_name):
+    return "EXAONE" in model_name.upper() and "/" not in model_name.split(":")[0]
 
 
 def _highlight_cache_key(persona, product, top_k):
@@ -181,28 +191,7 @@ def _get_style_candidates(style_data, aarrr_stage):
 
 def _set_cache_enabled(enabled):
     global CACHE_ENABLED
-    if CACHE_ENABLED == enabled:
-        return
     CACHE_ENABLED = enabled
-    if not enabled:
-        _QWEN_GENERATOR_CACHE.clear()
-        _EXAONE_GENERATOR_CACHE.clear()
-        _STYLE_POOL_CACHE.clear()
-        _HIGHLIGHT_CACHE.clear()
-        if hasattr(load_json, "cache_clear"):
-            load_json.cache_clear()
-    try:
-        LocalQwenGenerator.CACHE_ENABLED = enabled
-        if not enabled:
-            LocalQwenGenerator._CACHE.clear()
-    except Exception:
-        pass
-    try:
-        ExaoneToneCorrector.CACHE_ENABLED = enabled
-        if not enabled:
-            ExaoneToneCorrector._CACHE.clear()
-    except Exception:
-        pass
 
 
 def _record_timing(timing):
@@ -277,11 +266,11 @@ def _normalize_row(row):
     return normalized
 
 
-def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
+async def _run_pipeline(args, data=None, gen1=None, gen2=None):
     total_start = time.time()
     load_duration = 0.0
     rag_duration = 0.0
-    qwen_duration = 0.0
+    stage1_duration = 0.0
     if hasattr(args, "disable_cache"):
         _set_cache_enabled(not args.disable_cache)
         if not CACHE_ENABLED and hasattr(load_json, "cache_clear"):
@@ -330,11 +319,16 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
         if promo_y_list:
             selected_event = random.choice(promo_y_list)
 
-    # Qwen draft
-    qwen_start = time.time()
-    if q_generator is None:
-        q_generator = _get_qwen_generator(args.qwen_model)
-    q_draft, q_dur = q_generator.generate_marketing_draft(
+    # Stage 1: Drafting
+    s1_start = time.time()
+    if gen1 is None:
+        gen1 = get_llm_generator(args.stage1_model)
+
+    # Use a generic approach for messages
+    from generate_marketing import LocalQwenGenerator
+    # We still use the prompt building logic from the original classes for now
+    dummy = LocalQwenGenerator(model_name="dummy", use_cache=False)
+    q_messages = dummy.build_marketing_messages(
         product.get('brand_name', ''),
         product.get('name', ''),
         persona,
@@ -342,14 +336,17 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
         highlight_texts,
         campaign_event_info=selected_event
     )
-    qwen_end = time.time()
-    qwen_duration = q_dur if q_dur is not None else (qwen_end - qwen_start)
+    
+    q_draft = await gen1.generate(q_messages)
+    s1_end = time.time()
+    stage1_duration = s1_end - s1_start
+    
     timeline.append({
-        "step": "qwen_generation",
-        "model": args.qwen_model,
-        "started_at": datetime.fromtimestamp(qwen_start, timezone.utc).isoformat(),
-        "ended_at": datetime.fromtimestamp(qwen_end, timezone.utc).isoformat(),
-        "duration_seconds": qwen_duration,
+        "step": "stage1_drafting",
+        "model": args.stage1_model,
+        "started_at": datetime.fromtimestamp(s1_start, timezone.utc).isoformat(),
+        "ended_at": datetime.fromtimestamp(s1_end, timezone.utc).isoformat(),
+        "duration_seconds": stage1_duration,
         "output_raw": q_draft
     })
 
@@ -396,25 +393,24 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
         [f"[{m.get('role','')}] {m.get('content','')}" for m in exa_messages]
     )
 
-    # Exaone generation
+    # Stage 2: Refinement (Tone Correction)
     exa_start = time.time()
-    if exa_generator is None:
-        exa_generator = _get_exaone_generator(args.exa_model)
-    else:
-        exa_generator = _ensure_exaone_adapter(exa_generator)
-    exa_output = exa_generator.generate(exa_messages)
+    if gen2 is None:
+        gen2 = get_llm_generator(args.stage2_model)
+    
+    # Ensure any local Exaone adapter is loaded if applicable
+    gen2 = _ensure_exaone_adapter(gen2)
+    
+    exa_output = await gen2.generate(exa_messages)
     exa_end = time.time()
+    exa_duration = exa_end - exa_start
+
     timeline.append({
-        "step": "exaone_prompt",
-        "model": args.exa_model,
-        "prompt_preview": exa_prompt_text[:800]
-    })
-    timeline.append({
-        "step": "exaone_tone_correction",
-        "model": args.exa_model,
+        "step": "stage2_refinement",
+        "model": args.stage2_model,
         "started_at": datetime.fromtimestamp(exa_start, timezone.utc).isoformat(),
         "ended_at": datetime.fromtimestamp(exa_end, timezone.utc).isoformat(),
-        "duration_seconds": exa_end - exa_start,
+        "duration_seconds": exa_duration,
         "output_raw": exa_output
     })
 
@@ -441,13 +437,13 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
         "style_templates": style_ref_templates,
         "is_event": True if args.is_event == 1 else False,
         "selected_event": selected_event,
-        "qwen": {
-            "model": args.qwen_model,
+        "stage1": {
+            "model": args.stage1_model,
             "draft": q_draft,
             "highlights": highlights
         },
-        "exaone": {
-            "model": args.exa_model,
+        "stage2": {
+            "model": args.stage2_model,
             "prompt_messages": exa_messages,
             "prompt_text": exa_prompt_text,
             "rag_crm_snippets": crm_snippets,
@@ -457,13 +453,12 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
         "timeline": timeline
     }
 
-    exa_duration = exa_end - exa_start
     total_duration = time.time() - total_start
     timing = {
         "load": load_duration,
-        "qwen": qwen_duration,
+        "stage1": stage1_duration,
         "rag": rag_duration,
-        "exaone": exa_duration,
+        "stage2": exa_duration,
         "total": total_duration,
     }
     out["timing"] = timing
@@ -530,8 +525,8 @@ def main():
     parser.add_argument('--product', required=False, help='Product name (partial match allowed)')
     parser.add_argument('--stage_index', type=int, required=False, help='CRM stage index (0~4)')
     parser.add_argument('--top_k', type=int, default=3, help='RAG Top-K and review Top-K')
-    parser.add_argument('--qwen_model', default='Qwen/Qwen2.5-1.5B-Instruct', help='Qwen local model name')
-    parser.add_argument('--exa_model', default='LGAI-EXAONE/EXAONE-4.0-1.2B', help='Exaone local model name')
+    parser.add_argument('--stage1_model', default='Qwen/Qwen2.5-1.5B-Instruct', help='Drafting model name')
+    parser.add_argument('--stage2_model', default='LGAI-EXAONE/EXAONE-4.0-1.2B', help='Refinement model name')
     parser.add_argument('--is_event', type=int, default=0, help='Include campaign event (0 or 1)')
     parser.add_argument('--style_index', type=int, default=0, help='CRM template style index (0~5)')
     parser.add_argument('--out_path', default=None, help='Output path')

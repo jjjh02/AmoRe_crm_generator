@@ -202,7 +202,7 @@ class ExaoneToneCorrector:
     _CACHE = {}
     CACHE_ENABLED = True
 
-    def __init__(self, model_name: str = "LGAI-EXAONE/EXAONE-4.0-1.2B", use_cache: bool = True):
+    def __init__(self, model_name: str = TONE_CORRECTION_MODEL_ID, use_cache: bool = True):
         self.device = get_device()
         self.model_name = model_name
         cache_key = (self.device, model_name)
@@ -322,7 +322,7 @@ def main():
     parser.add_argument('--brand', required=True, help='브랜드명 (brand_stories.json 키)')
     parser.add_argument('--stage_index', type=int, required=True, help='발신 목적 인덱스 (0~4)')
     parser.add_argument('--top_k', type=int, default=5, help='CRM RAG Top-K')
-    parser.add_argument('--model_name', default="LGAI-EXAONE/EXAONE-3.0-7.8B-Instruct", help='Exaone 로컬 모델 이름')
+    parser.add_argument('--model_name', default=TONE_CORRECTION_MODEL_ID, help='Exaone 로컬 모델 이름')
     parser.add_argument('--out_path', default=None, help='결과 저장 경로')
     args = parser.parse_args()
 

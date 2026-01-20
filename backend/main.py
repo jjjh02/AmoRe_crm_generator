@@ -3,16 +3,31 @@ CRM Message Studio - FastAPI Backend
 3단계 인터랙티브 파이프라인 API
 """
 
+import sys
+import argparse
+from pathlib import Path
+from threading import Lock
+
+# 프로젝트 루트를 path에 추가하여 src 모듈 등을 찾을 수 있게 함
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+SRC_DIR = ROOT_DIR / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
 import time
 import uuid
-from typing import Dict, Any
+from typing import Dict, Any, List, Union
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from .config import settings
-from .llm_provider import get_llm_provider, OllamaProvider
+from .llm_provider import get_llm_provider
 from .data_service import DataService, STAGE_ORDER, STAGE_KR, PERSONA_INFO
 from .schemas import (
     Step1BriefRequest, Step1RefineRequest,
@@ -29,6 +44,9 @@ from .prompts import (
 
 # 세션 저장소 (메모리 기반, 프로덕션에서는 Redis 등 사용)
 sessions: Dict[str, Dict[str, Any]] = {}
+
+FRONTEND_DIR = ROOT_DIR / "frontend"
+DATA_DIR = ROOT_DIR / "data"
 
 
 @asynccontextmanager
@@ -58,9 +76,81 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# LLM Provider는 요청마다 모델명에 맞춰 생성합니다.
 
-# LLM Provider 인스턴스
-llm = get_llm_provider()
+class GenerateRequest(BaseModel):
+    persona: Union[int, str]
+    brand: str
+    product: str
+    stage_index: int
+    style_index: int
+    is_event: int = 0
+    top_k: int = 3
+    stage1_model: str = "Qwen/Qwen2.5-1.5B-Instruct"
+    stage2_model: str = "LGAI-EXAONE/EXAONE-4.0-1.2B"
+    disable_cache: bool = False
+    n: int = 1
+
+
+class BatchRequest(BaseModel):
+    items: List[GenerateRequest]
+    disable_cache: bool = False
+
+
+_PIPELINE_LOCK = Lock()
+_PIPELINE_CONTEXT = {}
+
+
+def _get_context(stage1_model: str, stage2_model: str, disable_cache: bool):
+    import run_qwen_exaone_pipeline as pipeline
+    if disable_cache:
+        if hasattr(pipeline, "_set_cache_enabled"):
+            pipeline._set_cache_enabled(False)
+        if hasattr(pipeline, "load_json") and hasattr(pipeline.load_json, "cache_clear"):
+            pipeline.load_json.cache_clear()
+        return {"data": None, "q_generator": None, "exa_generator": None}
+
+    if hasattr(pipeline, "_set_cache_enabled"):
+        pipeline._set_cache_enabled(True)
+
+    key = (stage1_model, stage2_model)
+    with _PIPELINE_LOCK:
+        cached = _PIPELINE_CONTEXT.get(key)
+        if cached:
+            return cached
+        base = Path(pipeline.__file__).resolve().parent.parent
+        data = pipeline._load_data(str(base))
+        from llm_utils import get_llm_generator
+        gen1 = get_llm_generator(stage1_model)
+        gen2 = get_llm_generator(stage2_model)
+        cached = {"data": data, "gen1": gen1, "gen2": gen2}
+        _PIPELINE_CONTEXT[key] = cached
+        return cached
+
+
+async def _run_pipeline(req: GenerateRequest):
+    import run_qwen_exaone_pipeline as pipeline
+    args = argparse.Namespace(
+        persona=req.persona,
+        brand=req.brand,
+        product=req.product,
+        stage_index=req.stage_index,
+        style_index=req.style_index,
+        is_event=req.is_event,
+        top_k=req.top_k,
+        stage1_model=req.stage1_model,
+        stage2_model=req.stage2_model,
+        out_path=None,
+        batch_json=None,
+        disable_cache=req.disable_cache,
+    )
+    ctx = _get_context(req.stage1_model, req.stage2_model, req.disable_cache)
+    return await pipeline._run_pipeline(
+        args,
+        data=ctx.get("data"),
+        gen1=ctx.get("gen1"),
+        gen2=ctx.get("gen2"),
+    )
 
 
 # ===========================
@@ -70,6 +160,32 @@ llm = get_llm_provider()
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "model": settings.OLLAMA_MODEL}
+
+@app.post("/generate")
+async def generate(req: GenerateRequest):
+    try:
+        if req.n <= 1:
+            result = await _run_pipeline(req)
+            return {"result": result}
+        results = []
+        for _ in range(req.n):
+            results.append(await _run_pipeline(req))
+        return {"results": results}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/generate_batch")
+async def generate_batch(req: BatchRequest):
+    try:
+        results = []
+        for item in req.items:
+            if req.disable_cache:
+                item.disable_cache = True
+            results.append(await _run_pipeline(item))
+        return {"results": results}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 # ===========================
@@ -115,6 +231,7 @@ async def create_brief(request: Step1BriefRequest):
         )
         
         # LLM 호출
+        llm = get_llm_provider(request.model_name)
         brief_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
         
         # 세션 생성
@@ -127,7 +244,8 @@ async def create_brief(request: Step1BriefRequest):
             "stage_name": stage_name,
             "crm_goal": crm_goal,
             "event": event,
-            "brief_text": brief_text
+            "brief_text": brief_text,
+            "model_name": request.model_name
         }
         
         processing_time = int((time.time() - start_time) * 1000)
@@ -167,6 +285,8 @@ async def refine_brief(request: Step1RefineRequest):
         messages = build_brief_refine_prompt(request.current_brief, request.feedback)
         
         # LLM 호출
+        model_name = session.get("model_name")
+        llm = get_llm_provider(model_name)
         brief_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
         
         # 세션 업데이트
@@ -217,6 +337,7 @@ async def create_draft(request: Step2DraftRequest):
         )
         
         # LLM 호출
+        llm = get_llm_provider(request.model_name)
         draft_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
         
         # 제목/본문 파싱
@@ -225,6 +346,7 @@ async def create_draft(request: Step2DraftRequest):
         # 세션 업데이트
         session["draft_title"] = title
         session["draft_body"] = body
+        session["model_name"] = request.model_name
         
         processing_time = int((time.time() - start_time) * 1000)
         
@@ -267,6 +389,8 @@ async def refine_draft(request: Step2RefineRequest):
         )
         
         # LLM 호출
+        model_name = session.get("model_name")
+        llm = get_llm_provider(model_name)
         draft_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
         
         # 제목/본문 파싱
@@ -330,10 +454,13 @@ async def create_tuning(request: Step3TuningRequest):
             )
             
             # LLM 호출
+            llm = get_llm_provider(request.model_name)
             tuned_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
             
             # 제목/본문 파싱
             title, body = parse_title_body(tuned_text)
+            if not body:
+                body = request.draft.body
             
             messages_list.append({
                 "persona": persona_id,
@@ -388,6 +515,7 @@ async def refine_tuning(request: Step3RefineRequest):
         )
         
         # LLM 호출
+        llm = get_llm_provider(request.model_name)
         tuned_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
         
         # 제목/본문 파싱
@@ -424,7 +552,23 @@ def parse_title_body(text: str) -> tuple:
     title = ""
     body = ""
     
-    lines = text.strip().split("\n")
+    raw = (text or "").strip()
+    if not raw:
+        return title, body
+    # JSON 우선 파싱
+    if raw.startswith("{") and raw.endswith("}"):
+        try:
+            import json
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                title = str(data.get("title", "")).strip()
+                body = str(data.get("body", "")).strip()
+                return title, body
+        except Exception:
+            pass
+
+    # Normalize line breaks and strip bullet markers
+    lines = [line.strip() for line in raw.replace("\r\n", "\n").split("\n") if line.strip()]
     current_section = None
     
     for line in lines:
@@ -448,10 +592,53 @@ def parse_title_body(text: str) -> tuple:
                 body += "\n" + line_stripped
             else:
                 body = line_stripped
-    
-    # 파싱 실패 시 전체 텍스트를 본문으로
-    if not title and not body:
-        body = text
+
+    # 추가 포맷 대응: "제목:", "본문:" 라벨
+    if not title or not body:
+        title_line = ""
+        body_lines = []
+        found_body = False
+        for line in lines:
+            if line.startswith("제목:"):
+                title_line = line.replace("제목:", "").strip()
+                continue
+            if line.startswith("본문:"):
+                found_body = True
+                content = line.replace("본문:", "").strip()
+                if content:
+                    body_lines.append(content)
+                continue
+            if found_body:
+                body_lines.append(line)
+        if not title and title_line:
+            title = title_line
+        if not body and body_lines:
+            body = "\n".join(body_lines).strip()
+
+    # 라벨/헤더 텍스트 제거
+    if body:
+        cleaned = []
+        for line in body.split("\n"):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped in ("[제목]", "[본문]"):
+                continue
+            if stripped.startswith("제목") or stripped.startswith("본문"):
+                continue
+            cleaned.append(stripped)
+        body = "\n".join(cleaned).strip()
+
+    # 파싱 실패 시: 첫 줄을 제목, 나머지를 본문으로
+    if not body:
+        if lines:
+            if not title:
+                title = lines[0]
+                body = "\n".join(lines[1:]).strip()
+            else:
+                body = "\n".join(lines).strip()
+        else:
+            body = raw
     
     return title, body
 
@@ -459,6 +646,9 @@ def parse_title_body(text: str) -> tuple:
 # ===========================
 # Main Entry
 # ===========================
+
+app.mount("/data", StaticFiles(directory=str(DATA_DIR)), name="data")
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn

@@ -16,11 +16,13 @@ const PERSONA_INFO = {
 
 let BRANDS_DATA = {}, PRODUCTS = [], PERSONAS = [], CAMPAIGN_EVENTS = {};
 
-state = {
+let state = {
     currentStep: 1, selectedBrand: null, selectedProduct: null,
     stageIndex: null, styleIndex: null, selectedEvent: null, mode: 'simple',
     customData: { brandName: '', brandStory: '', productName: '', productPrice: 0 },
-    customPersonas: [], customEvents: [], customStages: [], customStyles: []
+    customPersonas: [], customEvents: [], customStages: [], customStyles: [],
+    qwenModel: 'Qwen/Qwen2.5-1.5B-Instruct',
+    exaModel: 'LGAI-EXAONE/EXAONE-4.0-1.2B'
 };
 
 let AARRR = ['Acquisition', 'Activation', 'Retention', 'Revenue', 'Referral'];
@@ -31,6 +33,25 @@ const API_BASE = window.API_BASE || (location.origin && location.origin !== "nul
 const API_ENDPOINT = API_BASE ? `${API_BASE.replace(/\/$/, "")}/generate_batch` : "";
 
 const $ = id => document.getElementById(id);
+
+function getEditableText(el) {
+    return (el?.innerText || '').replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n');
+}
+
+function syncEditableAIState() {
+    const briefEl = $('brief-text-display');
+    if (briefEl?.isContentEditable) {
+        aiState.briefText = getEditableText(briefEl).trim();
+    }
+    const titleEl = $('draft-title-display');
+    if (titleEl?.isContentEditable) {
+        aiState.draftTitle = getEditableText(titleEl).replace(/\n+/g, ' ').trim();
+    }
+    const bodyEl = $('draft-body-display');
+    if (bodyEl?.isContentEditable) {
+        aiState.draftBody = getEditableText(bodyEl).trim();
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
@@ -80,12 +101,53 @@ function setupEvents() {
         updateSidebar();
     };
 
+    $('s1-model-chips').onclick = e => {
+        if (!e.target.classList.contains('chip')) return;
+        document.querySelectorAll('#s1-model-chips .chip').forEach(c => c.classList.remove('active'));
+        e.target.classList.add('active');
+        $('qwen-model-input').value = e.target.dataset.model;
+    };
+
+    $('s2-model-chips').onclick = e => {
+        if (!e.target.classList.contains('chip')) return;
+        document.querySelectorAll('#s2-model-chips .chip').forEach(c => c.classList.remove('active'));
+        e.target.classList.add('active');
+        $('exa-model-input').value = e.target.dataset.model;
+    };
+
+    // Clear active chips when user types manually
+    $('qwen-model-input').oninput = () => {
+        document.querySelectorAll('#s1-model-chips .chip').forEach(c => c.classList.remove('active'));
+    };
+    $('exa-model-input').oninput = () => {
+        document.querySelectorAll('#s2-model-chips .chip').forEach(c => c.classList.remove('active'));
+    };
+
     document.addEventListener('click', e => {
         if (e.target.classList.contains('category-tab')) {
             document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
             e.target.classList.add('active');
             renderProducts(e.target.dataset.category);
         }
+    });
+
+    const bindEditable = (id, onChange) => {
+        const el = $(id);
+        if (!el) return;
+        el.addEventListener('input', () => onChange(el));
+        el.addEventListener('blur', () => onChange(el));
+    };
+
+    bindEditable('brief-text-display', el => {
+        aiState.briefText = getEditableText(el).trim();
+        updateSidebar();
+    });
+    bindEditable('draft-title-display', el => {
+        aiState.draftTitle = getEditableText(el).replace(/\n+/g, ' ').trim();
+        updateSidebar();
+    });
+    bindEditable('draft-body-display', el => {
+        aiState.draftBody = getEditableText(el).trim();
     });
 }
 
@@ -190,11 +252,21 @@ function updateSidebar() {
     // Only show settings if they've been selected
     let settingsText = '-';
     if (state.stageIndex !== null && state.styleIndex !== null) {
-        settingsText = `${AARRR_KR[state.stageIndex]} · ${STYLES_KR[state.styleIndex]}`;
-    } else if (state.stageIndex !== null) {
-        settingsText = AARRR_KR[state.stageIndex];
+        const stageName = AARRR[state.stageIndex];
+        const styleName = STYLES_KR[state.styleIndex]; // Assuming templateTypeKR and templateOrder are defined elsewhere if needed
+        $('sidebar-settings').innerText = `${stageName} · ${styleName}`;
+    } else {
+        $('sidebar-settings').innerText = '-';
     }
-    $('sidebar-settings').textContent = settingsText;
+
+    // Step 4: Model
+    const s1 = $('qwen-model-input')?.value || 'Auto';
+    const s2 = $('exa-model-input')?.value || 'Auto';
+    if (state.currentStep > 4) {
+        $('sidebar-model').innerText = `${s1.split('/').pop()} / ${s2.split('/').pop()}`;
+    } else {
+        $('sidebar-model').innerText = '-';
+    }
 
     // AI Step status updates
     if ($('sidebar-brief')) {
@@ -213,7 +285,7 @@ function updateSidebar() {
         s.classList.toggle('completed', n < state.currentStep);
 
         // Disable steps that haven't been reached yet (for AI steps)
-        if (n > 3) {
+        if (n > 4) { // AI steps now start from 5
             const canNavigate = canNavigateToAIStep(n);
             s.classList.toggle('disabled', !canNavigate);
         }
@@ -224,17 +296,18 @@ function updateSidebar() {
     if (state.currentStep === 1 && state.selectedBrand) canNext = true;
     if (state.currentStep === 2 && state.selectedProduct) canNext = true;
     if (state.currentStep === 3 && state.stageIndex !== null && state.styleIndex !== null) canNext = true;
-    if (state.currentStep === 4) canNext = true; // Brief 확인
-    if (state.currentStep === 5) canNext = true; // Draft 확인
-    if (state.currentStep === 6) canNext = false; // 마지막
+    if (state.currentStep === 4) canNext = true; // Model selection
+    if (state.currentStep === 5) canNext = true; // Brief 확인
+    if (state.currentStep === 6) canNext = true; // Draft 확인
+    if (state.currentStep === 7) canNext = false; // 마지막
     $('next-btn').disabled = !canNext;
     $('back-btn').disabled = state.currentStep === 1;
 
     // Update next button text based on step
-    if (state.currentStep === 3) $('next-btn').textContent = '브리프 생성';
-    else if (state.currentStep === 4) $('next-btn').textContent = '초안 생성';
-    else if (state.currentStep === 5) $('next-btn').textContent = '메시지 생성';
-    else if (state.currentStep === 6) $('next-btn').textContent = '완료';
+    if (state.currentStep === 4) $('next-btn').textContent = '브리프 생성';
+    else if (state.currentStep === 5) $('next-btn').textContent = '초안 생성';
+    else if (state.currentStep === 6) $('next-btn').textContent = '메시지 생성';
+    else if (state.currentStep === 7) $('next-btn').textContent = '완료';
     else $('next-btn').textContent = '다음';
 }
 
@@ -265,15 +338,15 @@ function selectProduct(id) {
 // Sidebar navigation helper functions
 function canNavigateToAIStep(step) {
     // Can navigate to AI steps only if they have data
-    if (step === 4) return aiState.briefText !== '';
-    if (step === 5) return aiState.draftTitle !== '';
-    if (step === 6) return aiState.tunedMessages?.length > 0;
-    return true; // Steps 1-3 always navigable
+    if (step === 5) return aiState.briefText !== ''; // Brief is now step 5
+    if (step === 6) return aiState.draftTitle !== ''; // Draft is now step 6
+    if (step === 7) return aiState.tunedMessages?.length > 0; // Result is now step 7
+    return true; // Steps 1-4 always navigable
 }
 
 function navigateToStep(targetStep) {
-    // For AI steps (4-6), check if they have data
-    if (targetStep > 3 && !canNavigateToAIStep(targetStep)) {
+    // For AI steps (5-7), check if they have data
+    if (targetStep > 4 && !canNavigateToAIStep(targetStep)) {
         return; // Can't navigate to steps without data
     }
 
@@ -285,15 +358,30 @@ function navigateToStep(targetStep) {
 
     // For forward navigation, use normal flow
     if (targetStep === state.currentStep + 1) {
-        nextStep();
+        if (targetStep === 5) { // From Model to Brief
+            generateBrief();
+        } else if (targetStep === 6) { // From Brief to Draft
+            generateDraftFromBrief();
+        } else if (targetStep === 7) { // From Draft to Result
+            generateTuningFromDraft(); // This was generateTuningFromDraft, not renderPhoneMockupsFromAPI directly
+        } else {
+            nextStep(); // For non-AI steps
+        }
     }
 }
 
+window.updateLoadingStep = function (index, status) {
+    const el = $(`load-step-${index + 1}`);
+    if (!el) return;
+    el.classList.remove('active', 'done');
+    if (status) el.classList.add(status);
+};
+
 function nextStep() {
-    if (state.currentStep === 3) { generateMessages(); return; }
-    if (state.currentStep === 4) { generateDraftFromBrief(); return; }
-    if (state.currentStep === 5) { generateTuningFromDraft(); return; }
-    if (state.currentStep === 6) { return; } // 마지막 단계
+    if (state.currentStep === 4) { generateBrief(); return; }
+    if (state.currentStep === 5) { generateDraftFromBrief(); return; }
+    if (state.currentStep === 6) { generateTuningFromDraft(); return; }
+    if (state.currentStep === 7) { return; }
     goToStep(state.currentStep + 1);
 }
 
@@ -337,8 +425,8 @@ let aiState = {
     tunedMessages: []
 };
 
-async function generateMessages() {
-    // Step 3에서 호출 → Step 4 (Brief 생성)로 이동
+async function generateBrief() {
+    // Step 4에서 호출 → Step 5 (Brief 생성)로 이동
     const overlay = $('loading-overlay');
     overlay.style.display = 'flex';
 
@@ -356,7 +444,8 @@ async function generateMessages() {
             state.selectedProduct?.name || '',
             state.stageIndex || 0,
             state.styleIndex || 0,
-            eventInfo
+            eventInfo,
+            $('qwen-model-input')?.value || state.qwenModel
         );
 
         updateLoadingStep(0, 'done');
@@ -365,9 +454,9 @@ async function generateMessages() {
 
         overlay.style.display = 'none';
 
-        // Step 4로 이동 (Brief 확인)
+        // Step 5로 이동 (Brief 확인)
         $('brief-text-display').textContent = aiState.briefText;
-        goToStep(4);
+        goToStep(5);
 
     } catch (error) {
         overlay.style.display = 'none';
@@ -377,6 +466,7 @@ async function generateMessages() {
 }
 
 async function regenerateBrief() {
+    syncEditableAIState();
     const feedback = $('brief-feedback-input').value.trim();
     if (!feedback) {
         alert('수정 요청을 입력해주세요');
@@ -400,13 +490,15 @@ async function regenerateBrief() {
 
 async function generateDraftFromBrief() {
     // Step 4 → Step 5 (Draft 생성)
+    syncEditableAIState();
     const overlay = $('loading-overlay');
     overlay.style.display = 'flex';
 
     try {
         updateLoadingStep(1, 'active');
 
-        const result = await CRMStudioAPI.generateDraft(aiState.briefText);
+        const s1Model = $('qwen-model-input')?.value || state.qwenModel;
+        const result = await CRMStudioAPI.generateDraft(aiState.briefText, s1Model);
 
         updateLoadingStep(1, 'done');
 
@@ -415,11 +507,11 @@ async function generateDraftFromBrief() {
 
         overlay.style.display = 'none';
 
-        // Step 5로 이동 (Draft 확인)
+        // Step 6로 이동 (Draft 확인)
         $('draft-title-display').textContent = aiState.draftTitle;
         $('draft-body-display').textContent = aiState.draftBody;
         $('brand-tone-display').textContent = (result.data.brand_tone || []).join(', ');
-        goToStep(5);
+        goToStep(6);
 
     } catch (error) {
         overlay.style.display = 'none';
@@ -429,6 +521,7 @@ async function generateDraftFromBrief() {
 }
 
 async function regenerateDraft() {
+    syncEditableAIState();
     const feedback = $('draft-feedback-input').value.trim();
     if (!feedback) {
         alert('수정 요청을 입력해주세요');
@@ -456,6 +549,7 @@ async function regenerateDraft() {
 
 async function generateTuningFromDraft() {
     // Step 5 → Step 6 (Tuning 생성)
+    syncEditableAIState();
     const overlay = $('loading-overlay');
     overlay.style.display = 'flex';
 
@@ -463,10 +557,11 @@ async function generateTuningFromDraft() {
         updateLoadingStep(2, 'active');
         updateLoadingStep(3, 'active');
 
+        const s2Model = $('exa-model-input')?.value || state.exaModel;
         const result = await CRMStudioAPI.generateTuning({
             title: aiState.draftTitle,
             body: aiState.draftBody
-        });
+        }, null, s2Model);
 
         updateLoadingStep(2, 'done');
         updateLoadingStep(3, 'done');
@@ -475,9 +570,9 @@ async function generateTuningFromDraft() {
 
         overlay.style.display = 'none';
 
-        // Step 6으로 이동 (결과)
-        renderPhoneMockupsFromAPI();
-        goToStep(6);
+        // Step 7으로 이동 (결과)
+        await renderPhoneMockupsFromAPI();
+        goToStep(7);
 
     } catch (error) {
         overlay.style.display = 'none';
@@ -486,22 +581,35 @@ async function generateTuningFromDraft() {
     }
 }
 
-function renderPhoneMockupsFromAPI() {
-    const brand = state.selectedBrand;
-    const info = BRAND_IMAGES[brand] || {};
-    const color = info.color || '#3182F6';
-    const logo = info.logo_url || '';
+async function renderPhoneMockupsFromAPI() {
+    let generatedMap = {};
 
-    let generatedMap = null;
-    try {
-        generatedMap = await requestGeneratedMessages();
-    } catch (e) {
-        console.error('Generate API error:', e);
+    if (aiState.tunedMessages && aiState.tunedMessages.length > 0) {
+        // Use already tuned messages
+        aiState.tunedMessages.forEach(m => {
+            if (m.message) {
+                generatedMap[m.persona] = splitMessage(m.message, state.selectedBrand);
+                return;
+            }
+            const title = (m.title || '').trim();
+            const body = (m.body || '').trim();
+            generatedMap[m.persona] = {
+                title: title || `[${state.selectedBrand}] 메시지`,
+                body
+            };
+        });
+    } else {
+        // Fallback to batch API if needed
+        try {
+            generatedMap = await requestGeneratedMessages();
+        } catch (e) {
+            console.error('Generate API error:', e);
+        }
     }
 
-    overlay.style.display = 'none';
+    const overlay = $('loading-overlay');
+    if (overlay) overlay.style.display = 'none';
     renderPhoneMockups(generatedMap);
-    goToStep(4);
 }
 
 
@@ -527,13 +635,18 @@ async function requestGeneratedMessages() {
     if (!state.selectedProduct.product_id) {
         return null;
     }
+    const stage1Model = $('qwen-model-input')?.value || state.qwenModel;
+    const stage2Model = $('exa-model-input')?.value || state.exaModel;
+
     const items = PERSONAS.map((p, idx) => ({
         persona: idx,
         brand: state.selectedBrand,
         product: state.selectedProduct.name,
         stage_index: state.stageIndex,
         style_index: state.styleIndex,
-        is_event: state.selectedEvent ? 1 : 0
+        is_event: state.selectedEvent ? 1 : 0,
+        stage1_model: stage1Model,
+        stage2_model: stage2Model
     }));
     const res = await fetch(API_ENDPOINT, {
         method: 'POST',
@@ -549,7 +662,8 @@ async function requestGeneratedMessages() {
     const map = {};
     results.forEach((result, idx) => {
         const personaName = PERSONAS[idx]?.name || result?.persona_profile?.name;
-        const message = result?.exaone?.result_raw || result?.crm_message;
+        // Generic parsing: try stage2, then exaone, then crm_message
+        const message = result?.stage2?.result_raw || result?.exaone?.result_raw || result?.crm_message;
         if (personaName && message) {
             map[personaName] = splitMessage(message, state.selectedBrand);
         }
@@ -591,18 +705,20 @@ function renderPhoneMockups(generatedMap) {
     };
 
     const msgs = PERSONAS.map(p => {
-    const generated = generatedMap && generatedMap[p.name];
-    const fallback = personaMessages[p.name] || { title: `[${brand}] \uba54\uc2dc\uc9c0`, body: `${product} \uc9c0\uae08 \ud655\uc778\ud558\uc138\uc694` };
-    return {
-        name: p.name,
-        ...PERSONA_INFO[p.name],
-        ...(generated || fallback)
-    };
-});
+        const generated = generatedMap && generatedMap[p.name];
+        const fallback = personaMessages[p.name] || { title: `[${brand}] \uba54\uc2dc\uc9c0`, body: `${product} \uc9c0\uae08 \ud655\uc778\ud558\uc138\uc694` };
+        return {
+            name: p.name,
+            ...PERSONA_INFO[p.name],
+            ...(generated || fallback)
+        };
+    });
+
+    const baseTmpl = personaMessages.Custom || { title: `[${brand}] 메시지`, body: `${product} 지금 확인하세요` };
 
     // Add custom personas with generic logic
     state.customPersonas.forEach(p => {
-        personaMessages.push({
+        msgs.push({
             name: p.name,
             label: '커스텀',
             bg: '#F4F0F7',
@@ -612,7 +728,7 @@ function renderPhoneMockups(generatedMap) {
         });
     });
 
-    $('phone-carousel').innerHTML = personaMessages.map(m => `
+    $('phone-carousel').innerHTML = msgs.map(m => `
         <div class="phone-mockup">
             <div class="iphone-frame">
                 <div class="iphone-screen">

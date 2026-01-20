@@ -40,6 +40,7 @@ class Step1BriefRequest(BaseModel):
     stage_index: int = Field(..., ge=0, le=4, description="AARRR 스테이지 인덱스 (0-4)")
     style_index: int = Field(0, ge=0, le=5, description="스타일 인덱스 (0-5)")
     event: Optional[EventInfo] = Field(None, description="이벤트 정보 (선택)")
+    model_name: str = Field("Qwen/Qwen2.5-1.5B-Instruct", description="사용할 LLM 모델명")
 
 
 class BriefData(BaseModel):
@@ -68,6 +69,7 @@ class Step1RefineRequest(BaseModel):
 class Step2DraftRequest(BaseModel):
     session_id: str = Field(..., description="세션 ID")
     brief_text: str = Field(..., description="확정된 브리프 텍스트")
+    model_name: str = Field("Qwen/Qwen2.5-1.5B-Instruct", description="사용할 LLM 모델명")
 
 
 class Step2DraftResponse(BaseModel):
@@ -93,6 +95,7 @@ class Step3TuningRequest(BaseModel):
         default=["Luxury_Lover", "Budget_Seeker", "Sensitive_Skin", "Trend_Follower", "Natural_Beauty"],
         description="페르소나 ID 목록"
     )
+    model_name: str = Field("LGAI-EXAONE/EXAONE-4.0-1.2B", description="사용할 LLM 모델명")
 
 
 class Step3TuningResponse(BaseModel):
@@ -106,6 +109,7 @@ class Step3RefineRequest(BaseModel):
     persona: str = Field(..., description="재생성할 페르소나 ID")
     current_message: DraftMessage = Field(..., description="현재 메시지")
     feedback: str = Field(..., description="사용자 피드백")
+    model_name: str = Field("LGAI-EXAONE/EXAONE-4.0-1.2B", description="사용할 LLM 모델명")
 
 
 # ========================

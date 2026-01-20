@@ -65,23 +65,29 @@
                         <div class="step-text"><span class="step-label">설정</span><span class="step-value"
                                 id="sidebar-settings">-</span></div>
                     </div>
+                    <div class="progress-line"></div>
+                    <div class="progress-step clickable" data-step="4" onclick="navigateToStep(4)">
+                        <div class="step-num">4</div>
+                        <div class="step-text"><span class="step-label">모델</span><span class="step-value"
+                                id="sidebar-model">-</span></div>
+                    </div>
 
                     <!-- AI Generation Steps -->
                     <div class="progress-divider"><span>AI 생성</span></div>
 
-                    <div class="progress-step clickable" data-step="4" onclick="navigateToStep(4)">
+                    <div class="progress-step clickable" data-step="5" onclick="navigateToStep(5)">
                         <div class="step-num">📋</div>
                         <div class="step-text"><span class="step-label">브리프</span><span class="step-value ai-step"
                                 id="sidebar-brief">-</span></div>
                     </div>
                     <div class="progress-line"></div>
-                    <div class="progress-step clickable" data-step="5" onclick="navigateToStep(5)">
+                    <div class="progress-step clickable" data-step="6" onclick="navigateToStep(6)">
                         <div class="step-num">✍️</div>
                         <div class="step-text"><span class="step-label">초안</span><span class="step-value ai-step"
                                 id="sidebar-draft">-</span></div>
                     </div>
                     <div class="progress-line"></div>
-                    <div class="progress-step clickable" data-step="6" onclick="navigateToStep(6)">
+                    <div class="progress-step clickable" data-step="7" onclick="navigateToStep(7)">
                         <div class="step-num">🎉</div>
                         <div class="step-text"><span class="step-label">결과</span><span class="step-value ai-step"
                                 id="sidebar-result">-</span></div>
@@ -148,7 +154,7 @@
                     <!-- Expert Mode: Persona & Event Creator (Top) -->
                     <div id="expert-persona-creator" class="settings-card"
                         style="display: none; margin-bottom: 24px; border: 1px solid #9065B0;">
-                        <h3 style="color: #9065B0;">커스텀 설정 (전문가)</h3>
+                        <h3 style="color: #9065B0;">커스텀 페르소나 설정 (전문가)</h3>
 
                         <!-- Custom Persona -->
                         <div class="form-group">
@@ -165,8 +171,6 @@
                         </div>
 
                         <div class="divider"></div>
-
-                        
 
                         <!-- Custom Goal & Style (Row) -->
                         <div class="form-row" style="gap: 16px; align-items: flex-start;">
@@ -198,50 +202,107 @@
                     </div>
 
                     <div class="settings-container">
-    <div class="settings-card">
-        <h3>&#xbc1c;&#xc1a1; &#xbaa9;&#xc801;</h3>
-        <div class="chip-group" id="stage-chips">
-            <button class="chip" data-value="0">&#xccab; &#xc720;&#xc785;</button>
-            <button class="chip" data-value="1">&#xccab; &#xad6c;&#xb9e4;</button>
-            <button class="chip" data-value="2">&#xc7ac;&#xad6c;&#xb9e4;</button>
-            <button class="chip" data-value="3">&#xb9e4;&#xcd9c; &#xc99d;&#xb300;</button>
-            <button class="chip" data-value="4">&#xcd94;&#xcc9c;</button>
-            <button class="chip add-custom-btn" onclick="addCustomStage()"
-                style="background:#F2F4F6;color:#333;border:1px dashed #B0B8C1;">+ &#xc9c1;&#xc811; &#xc785;&#xb825;</button>
-        </div>
-    </div>
-    <div class="settings-card">
-        <h3>&#xc2a4;&#xd0c0;&#xc77c;</h3>
-        <div class="chip-group" id="style-chips">
-            <button class="chip" data-value="0">&#xae34;&#xbc15;</button>
-            <button class="chip" data-value="1">&#xc815;&#xbcf4;</button>
-            <button class="chip" data-value="2">FOMO</button>
-            <button class="chip" data-value="3">&#xac10;&#xc131;</button>
-            <button class="chip" data-value="4">&#xc2dc;&#xc98c;</button>
-            <button class="chip add-custom-btn" onclick="addCustomStyle()"
-                style="background:#F2F4F6;color:#333;border:1px dashed #B0B8C1;">+ &#xc9c1;&#xc811; &#xc785;&#xb825;</button>
-        </div>
-    </div>
-</div>
+                        <div class="settings-card">
+                            <h3>&#xbc1c;&#xc1a1; &#xbaa9;&#xc801;</h3>
+                            <div class="chip-group" id="stage-chips">
+                                <button class="chip" data-value="0">&#xccab; &#xc720;&#xc785;</button>
+                                <button class="chip" data-value="1">&#xccab; &#xad6c;&#xb9e4;</button>
+                                <button class="chip" data-value="2">&#xc7ac;&#xad6c;&#xb9e4;</button>
+                                <button class="chip" data-value="3">&#xb9e4;&#xcd9c; &#xc99d;&#xb300;</button>
+                                <button class="chip" data-value="4">&#xcd94;&#xcc9c;</button>
+                                <button class="chip add-custom-btn" onclick="addCustomStage()"
+                                    style="background:#F2F4F6;color:#333;border:1px dashed #B0B8C1;">+ &#xc9c1;&#xc811;
+                                    &#xc785;&#xb825;</button>
+                            </div>
+                        </div>
+                        <div class="settings-card">
+                            <h3>&#xc2a4;&#xd0c0;&#xc77c;</h3>
+                            <div class="chip-group" id="style-chips">
+                                <button class="chip" data-value="0">&#xae34;&#xbc15;</button>
+                                <button class="chip" data-value="1">&#xc815;&#xbcf4;</button>
+                                <button class="chip" data-value="2">FOMO</button>
+                                <button class="chip" data-value="3">&#xac10;&#xc131;</button>
+                                <button class="chip" data-value="4">&#xc2dc;&#xc98c;</button>
+                                <button class="chip add-custom-btn" onclick="addCustomStyle()"
+                                    style="background:#F2F4F6;color:#333;border:1px dashed #B0B8C1;">+ &#xc9c1;&#xc811;
+                                    &#xc785;&#xb825;</button>
+                            </div>
+                        </div>
+                    </div>
 
-<div class="settings-card">
-    <h3>&#xc774;&#xbc24;&#xd2b8; &#xc5ec;&#xbd80;</h3>
-    <div class="chip-group" id="event-chips" style="margin-bottom: 12px;">
-        <button class="chip" data-event="0">&#xc774;&#xbc24;&#xd2b8; &#xc5c6;&#xc74c;</button>
-        <button class="chip" data-event="1">&#xc774;&#xbc24;&#xd2b8; &#xc788;&#xc74c;</button>
-    </div>
-</div>
-</section>
+                    <div class="settings-card">
+                        <h3>&#xc774;&#xbc24;&#xd2b8; &#xc5ec;&#xbd80;</h3>
+                        <div class="chip-group" id="event-chips" style="margin-bottom: 12px;">
+                            <button class="chip" data-event="0">&#xc774;&#xbc24;&#xd2b8; &#xc5c6;&#xc74c;</button>
+                            <button class="chip" data-event="1">&#xc774;&#xbc24;&#xd2b8; &#xc788;&#xc74c;</button>
+                        </div>
+                    </div>
+                </section>
 
-                <!-- Step 4: AI 브리프 확인 -->
                 <section class="step-section" id="step-4">
+                    <div class="step-header">
+                        <h1>🤖 AI 모델 엔진 설정</h1>
+                        <p>메시지 생성에 사용할 AI 모델을 선택하세요</p>
+                    </div>
+
+                    <div class="settings-card">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="margin-bottom: 0;">1단계: 마케팅 브리프 & 초안 (Drafting)</h3>
+                            <span class="mode-tag" style="position: static; font-size: 11px;">추천: Qwen / Gemini</span>
+                        </div>
+                        <div class="model-selection-grid">
+                            <div class="chip-group" id="s1-model-chips" style="margin-bottom: 12px;">
+                                <button class="chip active" data-model="Qwen/Qwen2.5-1.5B-Instruct">Qwen
+                                    (Local)</button>
+                                <button class="chip" data-model="google/gemini-2.0-flash-exp:free">Gemini 2.0</button>
+                                <button class="chip" data-model="openai/gpt-4o-mini">GPT-4o Mini</button>
+                            </div>
+                            <input type="text" id="qwen-model-input" class="input-area"
+                                placeholder="직접 입력 (예: anthropic/claude-3-haiku)"
+                                style="height: 44px; padding: 0 16px; font-size: 14px; border-radius: var(--radius-sm);">
+                        </div>
+                    </div>
+
+                    <div class="settings-card" style="margin-top: 16px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="margin-bottom: 0;">2단계: CRM 톤 보정 & 타겟 최적화 (Refining)</h3>
+                            <span class="mode-tag"
+                                style="position: static; font-size: 11px; background: #F4F0F7; color: #9065B0;">추천:
+                                EXAONE / Claude</span>
+                        </div>
+                        <div class="model-selection-grid">
+                            <div class="chip-group" id="s2-model-chips" style="margin-bottom: 12px;">
+                                <button class="chip active" data-model="LGAI-EXAONE/EXAONE-4.0-1.2B">EXAONE
+                                    (Local)</button>
+                                <button class="chip" data-model="anthropic/claude-3-haiku">Claude 3 Haiku</button>
+                                <button class="chip" data-model="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</button>
+                            </div>
+                            <input type="text" id="exa-model-input" class="input-area"
+                                placeholder="직접 입력 (예: google/gemini-2.0-pro-exp:free)"
+                                style="height: 44px; padding: 0 16px; font-size: 14px; border-radius: var(--radius-sm);">
+                        </div>
+                    </div>
+
+                    <div class="step-info-box" style="margin-top: 24px;">
+                        <span class="info-label">💡 안내</span>
+                        <span style="font-size: 13px; color: var(--toss-gray-600);">
+                            모델 이름에 <code>/</code>가 포함되면 <b>OpenRouter API</b>를 통해 원격 호출합니다.<br>
+                            API 모델 사용 시 <code>.env</code> 파일에 API 키가 설정되어 있어야 합니다.
+                        </span>
+                    </div>
+                </section>
+
+                <!-- Step 5: AI 브리프 확인 -->
+                <section class="step-section" id="step-5">
                     <div class="step-header">
                         <h1>📋 마케팅 브리프 확인</h1>
                         <p>AI가 생성한 브리프를 검토하고 수정하세요</p>
                     </div>
                     <div class="ai-result-card" id="brief-result-card">
                         <div class="ai-result-content">
-                            <pre id="brief-text-display">브리프 생성 중...</pre>
+                            <pre id="brief-text-display" contenteditable="true">브리프 생성 중...</pre>
                         </div>
                         <div class="ai-result-actions">
                             <div class="feedback-row">
@@ -256,8 +317,8 @@
                     </div>
                 </section>
 
-                <!-- Step 5: AI 초안 확인 -->
-                <section class="step-section" id="step-5">
+                <!-- Step 6: AI 초안 확인 -->
+                <section class="step-section" id="step-6">
                     <div class="step-header">
                         <h1>✍️ 메시지 초안 확인</h1>
                         <p>브랜드 톤이 반영된 초안을 검토하세요</p>
@@ -266,11 +327,11 @@
                         <div class="draft-preview">
                             <div class="draft-title-box">
                                 <label>제목</label>
-                                <div id="draft-title-display">제목 생성 중...</div>
+                                <div id="draft-title-display" contenteditable="true">제목 생성 중...</div>
                             </div>
                             <div class="draft-body-box">
                                 <label>본문</label>
-                                <div id="draft-body-display">본문 생성 중...</div>
+                                <div id="draft-body-display" contenteditable="true">본문 생성 중...</div>
                             </div>
                         </div>
                         <div class="ai-result-actions">
@@ -286,8 +347,8 @@
                     </div>
                 </section>
 
-                <!-- Step 6: 페르소나별 결과 -->
-                <section class="step-section" id="step-6">
+                <!-- Step 7: 페르소나별 결과 -->
+                <section class="step-section" id="step-7">
                     <div class="step-header center">
                         <h1>🎉 페르소나별 메시지 완료</h1>
                         <p>각 고객군에 맞춤화된 메시지</p>

@@ -1,14 +1,14 @@
 """
 LLM Provider 추상화
 - BaseLLMProvider: 추상 베이스 클래스
-- OllamaProvider: Ollama API 호출 구현
-- 추후 OpenAIProvider, ClaudeProvider 등 확장 가능
+- ModelAgnosticProvider: 통합 LLM 제너레이터 호출 구현
 """
 
 import os
 import httpx
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
+from src.llm_utils import get_llm_generator
 
 
 class BaseLLMProvider(ABC):
@@ -37,28 +37,12 @@ class BaseLLMProvider(ABC):
         pass
 
 
-class OllamaProvider(BaseLLMProvider):
-    """Ollama API Provider"""
+class ModelAgnosticProvider(BaseLLMProvider):
+    """llm_utils를 사용하여 다양한 모델을 지원하는 Provider"""
     
-    def __init__(
-        self,
-        host: str = None,
-        model: str = None,
-        api_key: str = None,
-        timeout: float = 120.0
-    ):
-        self.host = host or os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        self.model = model or os.getenv("OLLAMA_MODEL", "llama3.2")
-        self.api_key = api_key or os.getenv("OLLAMA_API_KEY")
-        self.timeout = timeout
-        
-        # API endpoint
-        self.chat_endpoint = f"{self.host}/api/chat"
-        
-        # Headers
-        self.headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            self.headers["Authorization"] = f"Bearer {self.api_key}"
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+        self.generator = get_llm_generator(model_name)
     
     async def generate(
         self,
@@ -67,28 +51,8 @@ class OllamaProvider(BaseLLMProvider):
         temperature: float = 0.7,
         **kwargs
     ) -> str:
-        """비동기 메시지 생성"""
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "stream": False,
-            "options": {
-                "num_predict": max_tokens,
-                "temperature": temperature
-            }
-        }
-        
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                self.chat_endpoint,
-                json=payload,
-                headers=self.headers
-            )
-            response.raise_for_status()
-            result = response.json()
-            
-            # Ollama 응답 형식: {"message": {"role": "assistant", "content": "..."}}
-            return result.get("message", {}).get("content", "")
+        # generator.generate()는 [{role, content}] 형식을 인자로 받음
+        return await self.generator.generate(messages)
     
     def generate_sync(
         self,
@@ -97,34 +61,16 @@ class OllamaProvider(BaseLLMProvider):
         temperature: float = 0.7,
         **kwargs
     ) -> str:
-        """동기 메시지 생성"""
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "stream": False,
-            "options": {
-                "num_predict": max_tokens,
-                "temperature": temperature
-            }
-        }
-        
-        with httpx.Client(timeout=self.timeout) as client:
-            response = client.post(
-                self.chat_endpoint,
-                json=payload,
-                headers=self.headers
-            )
-            response.raise_for_status()
-            result = response.json()
-            
-            return result.get("message", {}).get("content", "")
+        # 동기 호출은 generator의 generate가 async이므로 래핑 필요할 수 있지만, 
+        # 여기서는 단순히 generator 인터페이스를 따름
+        import asyncio
+        import nest_asyncio
+        nest_asyncio.apply()
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self.generator.generate(messages))
 
 
-def get_llm_provider(provider_type: str = None) -> BaseLLMProvider:
+def get_llm_provider(model_name: str = None) -> BaseLLMProvider:
     """LLM Provider 팩토리 함수"""
-    provider_type = provider_type or os.getenv("LLM_PROVIDER", "ollama")
-    
-    if provider_type == "ollama":
-        return OllamaProvider()
-    else:
-        raise ValueError(f"Unknown LLM provider: {provider_type}")
+    model_name = model_name or os.getenv("OLLAMA_MODEL", "Qwen/Qwen2.5-1.5B-Instruct")
+    return ModelAgnosticProvider(model_name)

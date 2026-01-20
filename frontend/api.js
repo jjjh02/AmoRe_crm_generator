@@ -37,8 +37,9 @@ async function apiRequest(endpoint, options = {}) {
         const data = await response.json();
 
         if (!response.ok || !data.success) {
+            const message = data.error?.message || data.detail || '알 수 없는 오류가 발생했습니다';
             throw new APIError(
-                data.error?.message || '알 수 없는 오류가 발생했습니다',
+                message,
                 data.error?.code || 'UNKNOWN_ERROR',
                 data.error?.details
             );
@@ -58,12 +59,13 @@ async function apiRequest(endpoint, options = {}) {
 /**
  * Step 1: 마케팅 브리프 생성
  */
-async function generateBrief(brandName, productName, stageIndex, styleIndex, event = null) {
+async function generateBrief(brandName, productName, stageIndex, styleIndex, event = null, modelName = "Qwen/Qwen2.5-1.5B-Instruct") {
     const body = {
         brand_name: brandName,
         product_name: productName,
         stage_index: stageIndex,
-        style_index: styleIndex
+        style_index: styleIndex,
+        model_name: modelName
     };
 
     if (event) {
@@ -104,14 +106,15 @@ async function refineBrief(currentBrief, feedback) {
 /**
  * Step 2: 초안 생성
  */
-async function generateDraft(briefText) {
+async function generateDraft(briefText, modelName = "Qwen/Qwen2.5-1.5B-Instruct") {
     if (!currentSessionId) throw new APIError('세션이 없습니다', 'NO_SESSION');
 
     const result = await apiRequest('/step2/draft', {
         method: 'POST',
         body: JSON.stringify({
             session_id: currentSessionId,
-            brief_text: briefText
+            brief_text: briefText,
+            model_name: modelName
         })
     });
 
@@ -143,12 +146,13 @@ async function refineDraft(currentDraft, feedback) {
 /**
  * Step 3: 페르소나별 메시지 생성
  */
-async function generateTuning(draft, personas = null) {
+async function generateTuning(draft, personas = null, modelName = "LGAI-EXAONE/EXAONE-4.0-1.2B") {
     if (!currentSessionId) throw new APIError('세션이 없습니다', 'NO_SESSION');
 
     const body = {
         session_id: currentSessionId,
-        draft: draft
+        draft: draft,
+        model_name: modelName
     };
 
     if (personas) {
@@ -166,7 +170,7 @@ async function generateTuning(draft, personas = null) {
 /**
  * Step 3: 특정 페르소나 재생성
  */
-async function refineTuning(persona, currentMessage, feedback) {
+async function refineTuning(persona, currentMessage, feedback, modelName = "LGAI-EXAONE/EXAONE-4.0-1.2B") {
     if (!currentSessionId) throw new APIError('세션이 없습니다', 'NO_SESSION');
 
     const result = await apiRequest('/step3/tuning/refine', {
@@ -175,7 +179,8 @@ async function refineTuning(persona, currentMessage, feedback) {
             session_id: currentSessionId,
             persona: persona,
             current_message: currentMessage,
-            feedback: feedback
+            feedback: feedback,
+            model_name: modelName
         })
     });
 

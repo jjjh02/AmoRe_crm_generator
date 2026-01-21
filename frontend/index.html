@@ -142,12 +142,193 @@
                 <section class="step-section" id="step-3">
                     <div class="step-header">
                         <h1>메시지 설정</h1>
-                        <p>발송 목적과 스타일</p>
+                        <p>발송 목적, 스타일, AI 모델 선택</p>
                     </div>
 
-                    <!-- Expert Mode: Persona & Event Creator (Top) -->
+
+                    <div class="settings-container">
+                        <div class="settings-card">
+                            <h3>발송 목적</h3>
+                            <div class="chip-group" id="stage-chips">
+                                <button class="chip" data-value="0">첫 유입</button>
+                                <button class="chip" data-value="1">첫 구매</button>
+                                <button class="chip" data-value="2">재구매</button>
+                                <button class="chip" data-value="3">매출 증대</button>
+                                <button class="chip" data-value="4">추천</button>
+                                <button class="chip add-custom-btn" onclick="toggleInlineInput('stage')"
+                                    style="background:#F2F4F6;color:#333;border:1px dashed #B0B8C1;">+ 직접 입력</button>
+                            </div>
+                            <div id="inline-stage-input" class="inline-input-box" style="display:none;">
+                                <input type="text" id="inline-stage-name" placeholder="목적명 (예: 충성도 강화)">
+                                <button class="action-btn primary" onclick="submitInlineStage()">추가</button>
+                                <button class="action-btn secondary" onclick="toggleInlineInput('stage')">취소</button>
+                            </div>
+                        </div>
+                        <div class="settings-card">
+                            <h3>스타일</h3>
+                            <div class="chip-group" id="style-chips">
+                                <button class="chip" data-value="0">긴박함</button>
+                                <button class="chip" data-value="1">정보</button>
+                                <button class="chip" data-value="2">FOMO</button>
+                                <button class="chip" data-value="3">감성</button>
+                                <button class="chip" data-value="4">시즌</button>
+                                <button class="chip add-custom-btn" onclick="toggleInlineInput('style')"
+                                    style="background:#F2F4F6;color:#333;border:1px dashed #B0B8C1;">+ 직접 입력</button>
+                            </div>
+                            <div id="inline-style-input" class="inline-input-box" style="display:none;">
+                                <input type="text" id="inline-style-name" placeholder="스타일명 (예: 유머러스)">
+                                <button class="action-btn primary" onclick="submitInlineStyle()">추가</button>
+                                <button class="action-btn secondary" onclick="toggleInlineInput('style')">취소</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>이벤트 선택</h3>
+                        <div class="chip-group" id="event-chips" style="margin-bottom: 12px;">
+                            <span style="color:#8B95A1;font-size:13px;">위에서 발송 목적을 먼저 선택하세요</span>
+                        </div>
+                        <div class="campaign-info-box" id="event-detail-box">
+                            <p style="color:#8B95A1;font-size:13px;">이벤트 선택 시 상세정보가 표시됩니다</p>
+                        </div>
+                    </div>
+                    
+                    <!-- AI 모델 선택 섹션 -->
+                    <div class="settings-card ai-model-section">
+                        <h3>🤖 AI 모델 설정</h3>
+                        <p class="settings-description">각 생성 단계에서 사용할 AI 모델을 선택하세요</p>
+                        
+                        <div class="model-selection-grid">
+                            <!-- 브리프 생성 모델 -->
+                            <div class="model-select-item">
+                                <label>📋 브리프 생성</label>
+                                <div class="model-dropdown" id="brief-model-select" onclick="toggleModelDropdown('brief')">
+                                    <span class="selected-model" id="brief-selected-model">기본 모델</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="model-dropdown-menu" id="brief-dropdown-menu"></div>
+                            </div>
+                            
+                            <!-- 초안 생성 모델 -->
+                            <div class="model-select-item">
+                                <label>✍️ 초안 생성</label>
+                                <div class="model-dropdown" id="draft-model-select" onclick="toggleModelDropdown('draft')">
+                                    <span class="selected-model" id="draft-selected-model">기본 모델</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="model-dropdown-menu" id="draft-dropdown-menu"></div>
+                            </div>
+                            
+                            <!-- 페르소나 튜닝 모델 -->
+                            <div class="model-select-item">
+                                <label>👥 페르소나 튜닝</label>
+                                <div class="model-dropdown" id="tuning-model-select" onclick="toggleModelDropdown('tuning')">
+                                    <span class="selected-model" id="tuning-selected-model">기본 모델</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="model-dropdown-menu" id="tuning-dropdown-menu"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="model-info-box" id="model-info-box" style="display:none;">
+                            <span class="info-icon">💡</span>
+                            <span id="model-info-text">모델 정보가 여기에 표시됩니다</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 4: AI 브리프 확인 -->
+                <section class="step-section" id="step-4">
+                    <div class="step-header">
+                        <h1>📋 마케팅 브리프 확인</h1>
+                        <p>AI가 생성한 브리프를 검토하고 수정하세요</p>
+                    </div>
+                    
+                    <div class="ai-result-card" id="brief-result-card">
+                        <div class="ai-result-content">
+                            <textarea id="brief-text-display" rows="12" placeholder="브리프 생성 중..."></textarea>
+                        </div>
+                        <div class="ai-result-actions">
+                            <div class="feedback-row">
+                                <input type="text" id="brief-feedback-input" placeholder="수정 요청 (예: USP에 '순한 성분' 추가해줘)">
+                                <button class="action-btn secondary" onclick="regenerateBrief()">🔄 재생성</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-info-box">
+                        <span class="info-label">💡 TIP</span>
+                        <span>브리프가 마음에 들면 "다음"을 눌러 초안 생성을 진행하세요.</span>
+                    </div>
+                </section>
+
+                <!-- Step 5: AI 초안 확인 -->
+                <section class="step-section" id="step-5">
+                    <div class="step-header">
+                        <h1>✍️ 메시지 초안 확인</h1>
+                        <p>브랜드 톤이 반영된 초안을 검토하세요</p>
+                    </div>
+                    
+                    <div class="ai-result-card" id="draft-result-card">
+                        <div class="draft-preview">
+                            <div class="draft-title-box">
+                                <label>제목 (직접 수정 가능)</label>
+                                <input type="text" id="draft-title-display" placeholder="제목 생성 중...">
+                            </div>
+                            <div class="draft-body-box">
+                                <label>본문 (직접 수정 가능)</label>
+                                <textarea id="draft-body-display" rows="5" placeholder="본문 생성 중..."></textarea>
+                            </div>
+                        </div>
+                        <div class="ai-result-actions">
+                            <div class="feedback-row">
+                                <input type="text" id="draft-feedback-input" placeholder="수정 요청 (예: 이모지 줄이고 차분하게)">
+                                <button class="action-btn secondary" onclick="regenerateDraft()">🔄 재생성</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-info-box">
+                        <span class="info-label">🎨 브랜드 톤</span>
+                        <span id="brand-tone-display">-</span>
+                    </div>
+                    
+                    <!-- 페르소나 선택 (Step 5 하단) -->
+                    <div class="persona-tuning-settings">
+                        <div class="settings-card persona-selection-card">
+                            <h3>👥 생성할 페르소나 선택</h3>
+                            <p class="settings-description">메시지를 생성할 고객 유형을 선택하세요</p>
+                            <div class="persona-checkbox-group" id="persona-checkbox-group">
+                                <label class="persona-checkbox selected" data-persona="Luxury_Lover">
+                                    <input type="checkbox" value="Luxury_Lover" checked>
+                                    <span class="persona-chip" style="--persona-color: #9065B0;">프리미엄</span>
+                                </label>
+                                <label class="persona-checkbox selected" data-persona="Sensitive_Skin">
+                                    <input type="checkbox" value="Sensitive_Skin" checked>
+                                    <span class="persona-chip" style="--persona-color: #0F7B6C;">민감성</span>
+                                </label>
+                                <label class="persona-checkbox selected" data-persona="Budget_Seeker">
+                                    <input type="checkbox" value="Budget_Seeker" checked>
+                                    <span class="persona-chip" style="--persona-color: #D9730D;">가성비</span>
+                                </label>
+                                <label class="persona-checkbox selected" data-persona="Trend_Follower">
+                                    <input type="checkbox" value="Trend_Follower" checked>
+                                    <span class="persona-chip" style="--persona-color: #E03E8E;">트렌드</span>
+                                </label>
+                                <label class="persona-checkbox selected" data-persona="Natural_Beauty">
+                                    <input type="checkbox" value="Natural_Beauty" checked>
+                                    <span class="persona-chip" style="--persona-color: #2383E2;">자연주의</span>
+                                </label>
+                            </div>
+                            <div class="persona-actions">
+                                <button class="action-btn secondary small" onclick="selectAllPersonas()">전체 선택</button>
+                                <button class="action-btn secondary small" onclick="deselectAllPersonas()">전체 해제</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                    <!-- Expert Mode: Persona & Event Creator (Below basic settings) -->
                     <div id="expert-persona-creator" class="settings-card"
-                        style="display: none; margin-bottom: 24px; border: 1px solid #9065B0;">
+                        style="display: none; margin-top: 24px; border: 1px solid #9065B0; order: 2;">
                         <h3 style="color: #9065B0;">커스텀 설정 (전문가)</h3>
 
                         <!-- Custom Persona -->
@@ -166,7 +347,20 @@
 
                         <div class="divider"></div>
 
-                        
+                        <!-- Custom Event -->
+                        <div class="form-group">
+                            <label>커스텀 캠페인/이벤트 추가</label>
+                            <div class="form-row" style="gap:8px; margin-bottom: 8px;">
+                                <input type="text" id="new-event-name" placeholder="이벤트명 (예: 게릴라 럭키박스)" style="flex:1;">
+                                <button class="action-btn secondary" onclick="addCustomEvent()"
+                                    style="flex-shrink: 0;">추가</button>
+                            </div>
+                            <textarea id="new-event-detail" placeholder="상세 이벤트 설명 (메시지 생성에 활용됩니다)" rows="2"
+                                style="margin-bottom: 8px;"></textarea>
+                            <div id="added-events-list" class="added-items-list"></div>
+                        </div>
+
+                        <div class="divider"></div>
 
                         <!-- Custom Goal & Style (Row) -->
                         <div class="form-row" style="gap: 16px; align-items: flex-start;">
@@ -196,96 +390,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="settings-container">
-    <div class="settings-card">
-        <h3>&#xbc1c;&#xc1a1; &#xbaa9;&#xc801;</h3>
-        <div class="chip-group" id="stage-chips">
-            <button class="chip" data-value="0">&#xccab; &#xc720;&#xc785;</button>
-            <button class="chip" data-value="1">&#xccab; &#xad6c;&#xb9e4;</button>
-            <button class="chip" data-value="2">&#xc7ac;&#xad6c;&#xb9e4;</button>
-            <button class="chip" data-value="3">&#xb9e4;&#xcd9c; &#xc99d;&#xb300;</button>
-            <button class="chip" data-value="4">&#xcd94;&#xcc9c;</button>
-            <button class="chip add-custom-btn" onclick="addCustomStage()"
-                style="background:#F2F4F6;color:#333;border:1px dashed #B0B8C1;">+ &#xc9c1;&#xc811; &#xc785;&#xb825;</button>
-        </div>
-    </div>
-    <div class="settings-card">
-        <h3>&#xc2a4;&#xd0c0;&#xc77c;</h3>
-        <div class="chip-group" id="style-chips">
-            <button class="chip" data-value="0">&#xae34;&#xbc15;</button>
-            <button class="chip" data-value="1">&#xc815;&#xbcf4;</button>
-            <button class="chip" data-value="2">FOMO</button>
-            <button class="chip" data-value="3">&#xac10;&#xc131;</button>
-            <button class="chip" data-value="4">&#xc2dc;&#xc98c;</button>
-            <button class="chip add-custom-btn" onclick="addCustomStyle()"
-                style="background:#F2F4F6;color:#333;border:1px dashed #B0B8C1;">+ &#xc9c1;&#xc811; &#xc785;&#xb825;</button>
-        </div>
-    </div>
-</div>
-
-<div class="settings-card">
-    <h3>&#xc774;&#xbc24;&#xd2b8; &#xc5ec;&#xbd80;</h3>
-    <div class="chip-group" id="event-chips" style="margin-bottom: 12px;">
-        <button class="chip" data-event="0">&#xc774;&#xbc24;&#xd2b8; &#xc5c6;&#xc74c;</button>
-        <button class="chip" data-event="1">&#xc774;&#xbc24;&#xd2b8; &#xc788;&#xc74c;</button>
-    </div>
-</div>
-</section>
-
-                <!-- Step 4: AI 브리프 확인 -->
-                <section class="step-section" id="step-4">
-                    <div class="step-header">
-                        <h1>📋 마케팅 브리프 확인</h1>
-                        <p>AI가 생성한 브리프를 검토하고 수정하세요</p>
-                    </div>
-                    <div class="ai-result-card" id="brief-result-card">
-                        <div class="ai-result-content">
-                            <pre id="brief-text-display">브리프 생성 중...</pre>
-                        </div>
-                        <div class="ai-result-actions">
-                            <div class="feedback-row">
-                                <input type="text" id="brief-feedback-input" placeholder="수정 요청 (예: USP에 '순한 성분' 추가해줘)">
-                                <button class="action-btn secondary" onclick="regenerateBrief()">🔄 재생성</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="step-info-box">
-                        <span class="info-label">💡 TIP</span>
-                        <span>브리프가 마음에 들면 "다음"을 눌러 초안 생성을 진행하세요.</span>
-                    </div>
-                </section>
-
-                <!-- Step 5: AI 초안 확인 -->
-                <section class="step-section" id="step-5">
-                    <div class="step-header">
-                        <h1>✍️ 메시지 초안 확인</h1>
-                        <p>브랜드 톤이 반영된 초안을 검토하세요</p>
-                    </div>
-                    <div class="ai-result-card" id="draft-result-card">
-                        <div class="draft-preview">
-                            <div class="draft-title-box">
-                                <label>제목</label>
-                                <div id="draft-title-display">제목 생성 중...</div>
-                            </div>
-                            <div class="draft-body-box">
-                                <label>본문</label>
-                                <div id="draft-body-display">본문 생성 중...</div>
-                            </div>
-                        </div>
-                        <div class="ai-result-actions">
-                            <div class="feedback-row">
-                                <input type="text" id="draft-feedback-input" placeholder="수정 요청 (예: 이모지 줄이고 차분하게)">
-                                <button class="action-btn secondary" onclick="regenerateDraft()">🔄 재생성</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="step-info-box">
-                        <span class="info-label">🎨 브랜드 톤</span>
-                        <span id="brand-tone-display">-</span>
-                    </div>
-                </section>
-
                 <!-- Step 6: 페르소나별 결과 -->
                 <section class="step-section" id="step-6">
                     <div class="step-header center">

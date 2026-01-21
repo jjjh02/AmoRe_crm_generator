@@ -10,12 +10,12 @@ CRM Message Studio는 뷰티 브랜드를 위한 **AI 기반 CRM 메시지 생�
 
 ### 핵심 기능
 
-| 기능 | 설명 |
-|------|------|
-| **3단계 AI 파이프라인** | Brief → Draft → Tuning 순차 생성 |
-| **인터랙티브 피드백** | 각 단계에서 수정 요청 및 재생성 가능 |
+| 기능                          | 설명                                      |
+| ----------------------------- | ----------------------------------------- |
+| **3단계 AI 파이프라인** | Brief → Draft → Tuning 순차 생성        |
+| **인터랙티브 피드백**   | 각 단계에서 수정 요청 및 재생성 가능      |
 | **5개 페르소나 최적화** | Luxury, Budget, Sensitive, Trend, Natural |
-| **실시간 LLM 연동** | Ollama API (교체 용이한 Provider 패턴) |
+| **실시간 LLM 연동**     | Ollama API (교체 용이한 Provider 패턴)    |
 
 ---
 
@@ -32,17 +32,17 @@ flowchart TB
         S6[Step 6: 결과]
         S1 --> S2 --> S3 --> S4 --> S5 --> S6
     end
-    
+  
     subgraph BE[Backend - FastAPI]
         API1[POST /step1/brief]
         API2[POST /step2/draft]
         API3[POST /step3/tuning]
     end
-    
+  
     subgraph LLM[LLM Provider]
         OLLAMA[Ollama API]
     end
-    
+  
     FE <--> BE
     BE <--> LLM
 ```
@@ -65,11 +65,11 @@ flowchart LR
 
 ### 각 단계 설명
 
-| 단계 | 역할 | 출력 형식 |
-|------|------|----------|
-| **Step 4: Brief** | 마케팅 개조식 브리프 생성 | 타겟/핵심메시지/USP/CTA |
-| **Step 5: Draft** | 브랜드 톤 반영 초안 | 제목 + 본문 |
-| **Step 6: Tuning** | 페르소나별 최적화 | 5개 맞춤 메시지 |
+| 단계                     | 역할                      | 출력 형식               |
+| ------------------------ | ------------------------- | ----------------------- |
+| **Step 4: Brief**  | 마케팅 개조식 브리프 생성 | 타겟/핵심메시지/USP/CTA |
+| **Step 5: Draft**  | 브랜드 톤 반영 초안       | 제목 + 본문             |
+| **Step 6: Tuning** | 페르소나별 최적화         | 5개 맞춤 메시지         |
 
 ---
 
@@ -116,25 +116,25 @@ classDiagram
         +create_draft()
         +create_tuning()
     }
-    
+  
     class llm_provider_py {
         +BaseLLMProvider
         +OllamaProvider
         +get_llm_provider()
     }
-    
+  
     class prompts_py {
         +build_brief_prompt()
         +build_draft_prompt()
         +build_tuning_prompt()
     }
-    
+  
     class data_service_py {
         +DataService
         +find_product()
         +get_brand_story()
     }
-    
+  
     main_py --> llm_provider_py
     main_py --> prompts_py
     main_py --> data_service_py
@@ -142,13 +142,13 @@ classDiagram
 
 ### 주요 파일 설명
 
-| 파일 | 역할 |
-|------|------|
-| `main.py` | FastAPI 앱, 6개 엔드포인트, 세션 관리 |
-| `llm_provider.py` | Ollama API 호출, Provider 교체 용이 |
-| `prompts.py` | Brief/Draft/Tuning 프롬프트 템플릿 |
-| `data_service.py` | products.json 등 데이터 로드 및 캐싱 |
-| `schemas.py` | Pydantic 요청/응답 스키마 정의 |
+| 파일                | 역할                                  |
+| ------------------- | ------------------------------------- |
+| `main.py`         | FastAPI 앱, 6개 엔드포인트, 세션 관리 |
+| `llm_provider.py` | Ollama API 호출, Provider 교체 용이   |
+| `prompts.py`      | Brief/Draft/Tuning 프롬프트 템플릿    |
+| `data_service.py` | products.json 등 데이터 로드 및 캐싱  |
+| `schemas.py`      | Pydantic 요청/응답 스키마 정의        |
 
 ---
 
@@ -158,24 +158,24 @@ classDiagram
 
 ### Step 1: Brief
 
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| `POST` | `/step1/brief` | 마케팅 브리프 생성 |
-| `PUT` | `/step1/brief/refine` | 피드백 반영 재생성 |
+| Method   | Endpoint                | 설명               |
+| -------- | ----------------------- | ------------------ |
+| `POST` | `/step1/brief`        | 마케팅 브리프 생성 |
+| `PUT`  | `/step1/brief/refine` | 피드백 반영 재생성 |
 
 ### Step 2: Draft
 
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| `POST` | `/step2/draft` | 브랜드 톤 반영 초안 생성 |
-| `PUT` | `/step2/draft/refine` | 피드백 반영 재생성 |
+| Method   | Endpoint                | 설명                     |
+| -------- | ----------------------- | ------------------------ |
+| `POST` | `/step2/draft`        | 브랜드 톤 반영 초안 생성 |
+| `PUT`  | `/step2/draft/refine` | 피드백 반영 재생성       |
 
 ### Step 3: Tuning
 
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| `POST` | `/step3/tuning` | 5개 페르소나별 메시지 생성 |
-| `PUT` | `/step3/tuning/refine` | 특정 페르소나 재생성 |
+| Method   | Endpoint                 | 설명                       |
+| -------- | ------------------------ | -------------------------- |
+| `POST` | `/step3/tuning`        | 5개 페르소나별 메시지 생성 |
+| `PUT`  | `/step3/tuning/refine` | 특정 페르소나 재생성       |
 
 ---
 
@@ -187,21 +187,21 @@ sequenceDiagram
     participant F as Frontend
     participant B as Backend
     participant O as Ollama
-    
+  
     U->>F: 브랜드/제품/설정 선택
     F->>B: POST /step1/brief
     B->>O: Brief 생성 요청
     O-->>B: 브리프 텍스트
     B-->>F: Brief 응답
     F->>U: 브리프 표시
-    
+  
     U->>F: 확정
     F->>B: POST /step2/draft
     B->>O: Draft 생성 요청
     O-->>B: 제목 + 본문
     B-->>F: Draft 응답
     F->>U: 초안 표시
-    
+  
     U->>F: 확정
     F->>B: POST /step3/tuning
     B->>O: 5개 페르소나 생성
@@ -216,9 +216,9 @@ sequenceDiagram
 
 ### 간편 모드 vs 전문가 모드
 
-| 모드 | 설명 |
-|------|------|
-| **간편 모드** | 기존 브랜드/제품 목록에서 선택 |
+| 모드                  | 설명                              |
+| --------------------- | --------------------------------- |
+| **간편 모드**   | 기존 브랜드/제품 목록에서 선택    |
 | **전문가 모드** | 커스텀 브랜드/제품 정보 입력 가능 |
 
 ### 6단계 워크플로우
@@ -233,6 +233,7 @@ sequenceDiagram
 ### 피드백 및 재생성
 
 각 AI 단계에서:
+
 - ✅ "다음" 클릭 → 확정 후 다음 단계
 - 🔄 피드백 입력 후 "재생성" → 수정된 결과 생성
 
@@ -241,7 +242,7 @@ sequenceDiagram
 ## 🚀 실행 방법
 
 ```bash
-# 1. 의존성 설치
+s# 1. 의존성 설치
 pip install -r requirements.txt
 
 # 2. 환경변수 설정
@@ -256,6 +257,12 @@ python3 -m http.server 8888
 
 # 5. 브라우저 접속
 open http://localhost:8888/frontend/index.html
+
+# 포트 8000만 종료
+lsof -ti:8000 | xargs kill -9
+
+# 포트 8888만 종료
+lsof -ti:8888 | xargs kill -9
 ```
 
 ---
@@ -270,4 +277,7 @@ llm = get_llm_provider("ollama")
 
 # 향후: OpenAI, Claude 등
 # llm = get_llm_provider("openai")
+
+
+
 ```

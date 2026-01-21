@@ -1,12 +1,23 @@
 /**
  * CRM Message Studio - API 통신 모듈
  * 백엔드 3단계 파이프라인 API 연동
+ * v2.0 - 모델 선택 및 페르소나 선택 지원
  */
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 // 현재 세션 ID 저장
 let currentSessionId = null;
+
+// 현재 모델 설정 (각 단계별)
+let modelSettings = {
+    brief: { provider: null, model: null },
+    draft: { provider: null, model: null },
+    tuning: { provider: null, model: null }
+};
+
+// 사용 가능한 모델 목록 캐시
+let availableModels = null;
 
 /**
  * API 에러 처리
@@ -52,6 +63,57 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 // ===========================
+// Model & Provider API
+// ===========================
+
+/**
+ * 사용 가능한 모델 목록 조회
+ */
+async function getAvailableModels() {
+    if (availableModels) return availableModels;
+    
+    try {
+        const result = await apiRequest('/models');
+        availableModels = result.data;
+        return availableModels;
+    } catch (error) {
+        console.error('모델 목록 조회 실패:', error);
+        return { providers: [], default_provider: 'ollama' };
+    }
+}
+
+/**
+ * 페르소나 목록 조회
+ */
+async function getPersonas() {
+    try {
+        const result = await apiRequest('/personas');
+        return result.data.personas;
+    } catch (error) {
+        console.error('페르소나 목록 조회 실패:', error);
+        return [];
+    }
+}
+
+/**
+ * 모델 설정 저장
+ */
+function setModelConfig(step, provider, model) {
+    modelSettings[step] = { provider, model };
+}
+
+/**
+ * 모델 설정 가져오기
+ */
+function getModelConfig(step) {
+    const config = modelSettings[step];
+    if (config && (config.provider || config.model)) {
+        return config;
+    }
+    return null;
+}
+
+// ===========================
 // Step 1: Brief API
 // ===========================
 
@@ -76,6 +138,12 @@ async function generateBrief(brandName, productName, stageIndex, styleIndex, eve
         body.custom_style_name = customStyleName;
     }
 
+    // 모델 설정 추가
+    const modelConfig = getModelConfig('brief');
+    if (modelConfig) {
+        body.model_config = modelConfig;
+    }
+
     const result = await apiRequest('/step1/brief', {
         method: 'POST',
         body: JSON.stringify(body)
@@ -91,13 +159,21 @@ async function generateBrief(brandName, productName, stageIndex, styleIndex, eve
 async function refineBrief(currentBrief, feedback) {
     if (!currentSessionId) throw new APIError('세션이 없습니다', 'NO_SESSION');
 
+    const body = {
+        session_id: currentSessionId,
+        current_brief: currentBrief,
+        feedback: feedback
+    };
+
+    // 모델 설정 추가
+    const modelConfig = getModelConfig('brief');
+    if (modelConfig) {
+        body.model_config = modelConfig;
+    }
+
     const result = await apiRequest('/step1/brief/refine', {
         method: 'PUT',
-        body: JSON.stringify({
-            session_id: currentSessionId,
-            current_brief: currentBrief,
-            feedback: feedback
-        })
+        body: JSON.stringify(body)
     });
 
     return result;
@@ -113,12 +189,20 @@ async function refineBrief(currentBrief, feedback) {
 async function generateDraft(briefText) {
     if (!currentSessionId) throw new APIError('세션이 없습니다', 'NO_SESSION');
 
+    const body = {
+        session_id: currentSessionId,
+        brief_text: briefText
+    };
+
+    // 모델 설정 추가
+    const modelConfig = getModelConfig('draft');
+    if (modelConfig) {
+        body.model_config = modelConfig;
+    }
+
     const result = await apiRequest('/step2/draft', {
         method: 'POST',
-        body: JSON.stringify({
-            session_id: currentSessionId,
-            brief_text: briefText
-        })
+        body: JSON.stringify(body)
     });
 
     return result;
@@ -130,13 +214,21 @@ async function generateDraft(briefText) {
 async function refineDraft(currentDraft, feedback) {
     if (!currentSessionId) throw new APIError('세션이 없습니다', 'NO_SESSION');
 
+    const body = {
+        session_id: currentSessionId,
+        current_draft: currentDraft,
+        feedback: feedback
+    };
+
+    // 모델 설정 추가
+    const modelConfig = getModelConfig('draft');
+    if (modelConfig) {
+        body.model_config = modelConfig;
+    }
+
     const result = await apiRequest('/step2/draft/refine', {
         method: 'PUT',
-        body: JSON.stringify({
-            session_id: currentSessionId,
-            current_draft: currentDraft,
-            feedback: feedback
-        })
+        body: JSON.stringify(body)
     });
 
     return result;
@@ -147,7 +239,7 @@ async function refineDraft(currentDraft, feedback) {
 // ===========================
 
 /**
- * Step 3: 페르소나별 메시지 생성
+ * Step 3: 페르소나별 메시지 생성 (선택한 페르소나만)
  */
 async function generateTuning(draft, personas = null) {
     if (!currentSessionId) throw new APIError('세션이 없습니다', 'NO_SESSION');
@@ -157,8 +249,15 @@ async function generateTuning(draft, personas = null) {
         draft: draft
     };
 
-    if (personas) {
+    // 선택된 페르소나 (null이면 기본 전체)
+    if (personas && personas.length > 0) {
         body.personas = personas;
+    }
+
+    // 모델 설정 추가
+    const modelConfig = getModelConfig('tuning');
+    if (modelConfig) {
+        body.model_config = modelConfig;
     }
 
     const result = await apiRequest('/step3/tuning', {
@@ -175,14 +274,22 @@ async function generateTuning(draft, personas = null) {
 async function refineTuning(persona, currentMessage, feedback) {
     if (!currentSessionId) throw new APIError('세션이 없습니다', 'NO_SESSION');
 
+    const body = {
+        session_id: currentSessionId,
+        persona: persona,
+        current_message: currentMessage,
+        feedback: feedback
+    };
+
+    // 모델 설정 추가
+    const modelConfig = getModelConfig('tuning');
+    if (modelConfig) {
+        body.model_config = modelConfig;
+    }
+
     const result = await apiRequest('/step3/tuning/refine', {
         method: 'PUT',
-        body: JSON.stringify({
-            session_id: currentSessionId,
-            persona: persona,
-            current_message: currentMessage,
-            feedback: feedback
-        })
+        body: JSON.stringify(body)
     });
 
     return result;
@@ -207,13 +314,29 @@ async function checkHealth() {
 // ===========================
 
 window.CRMStudioAPI = {
+    // Brief API
     generateBrief,
     refineBrief,
+    
+    // Draft API
     generateDraft,
     refineDraft,
+    
+    // Tuning API
     generateTuning,
     refineTuning,
+    
+    // Model & Provider API
+    getAvailableModels,
+    getPersonas,
+    setModelConfig,
+    getModelConfig,
+    
+    // Utility
     checkHealth,
     getSessionId: () => currentSessionId,
-    resetSession: () => { currentSessionId = null; }
+    resetSession: () => { 
+        currentSessionId = null;
+        availableModels = null;
+    }
 };

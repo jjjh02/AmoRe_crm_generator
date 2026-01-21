@@ -30,6 +30,12 @@ class PersonaMessage(BaseModel):
     tone_keywords: List[str] = Field(default_factory=list, description="적용된 톤 키워드")
 
 
+class ModelConfig(BaseModel):
+    """LLM 모델 선택 설정"""
+    provider: Optional[str] = Field(None, description="LLM Provider (ollama, openrouter)")
+    model: Optional[str] = Field(None, description="모델 ID (예: llama3.2, anthropic/claude-3.5-sonnet)")
+
+
 # ========================
 # Step 1: Brief
 # ========================
@@ -42,6 +48,7 @@ class Step1BriefRequest(BaseModel):
     custom_stage_name: Optional[str] = Field(None, description="커스텀 스테이지명 (스테이지 인덱스가 5 이상일 때)")
     custom_style_name: Optional[str] = Field(None, description="커스텀 스타일명 (스타일 인덱스가 5 이상일 때)") 
     event: Optional[EventInfo] = Field(None, description="이벤트 정보 (선택)")
+    model_config_input: Optional[ModelConfig] = Field(None, description="모델 설정 (선택)", alias="model_config")
 
 
 class BriefData(BaseModel):
@@ -61,6 +68,7 @@ class Step1RefineRequest(BaseModel):
     session_id: str = Field(..., description="세션 ID")
     current_brief: str = Field(..., description="현재 브리프 텍스트")
     feedback: str = Field(..., description="사용자 피드백")
+    model_config_input: Optional[ModelConfig] = Field(None, description="모델 설정 (선택)", alias="model_config")
 
 
 # ========================
@@ -70,6 +78,7 @@ class Step1RefineRequest(BaseModel):
 class Step2DraftRequest(BaseModel):
     session_id: str = Field(..., description="세션 ID")
     brief_text: str = Field(..., description="확정된 브리프 텍스트")
+    model_config_input: Optional[ModelConfig] = Field(None, description="모델 설정 (선택)", alias="model_config")
 
 
 class Step2DraftResponse(BaseModel):
@@ -82,6 +91,7 @@ class Step2RefineRequest(BaseModel):
     session_id: str = Field(..., description="세션 ID")
     current_draft: DraftMessage = Field(..., description="현재 초안")
     feedback: str = Field(..., description="사용자 피드백")
+    model_config_input: Optional[ModelConfig] = Field(None, description="모델 설정 (선택)", alias="model_config")
 
 
 # ========================
@@ -93,8 +103,9 @@ class Step3TuningRequest(BaseModel):
     draft: DraftMessage = Field(..., description="확정된 초안")
     personas: List[str] = Field(
         default=["Luxury_Lover", "Budget_Seeker", "Sensitive_Skin", "Trend_Follower", "Natural_Beauty"],
-        description="페르소나 ID 목록"
+        description="페르소나 ID 목록 (선택한 페르소나만 포함)"
     )
+    model_config_input: Optional[ModelConfig] = Field(None, description="모델 설정 (선택)", alias="model_config")
 
 
 class Step3TuningResponse(BaseModel):
@@ -108,6 +119,7 @@ class Step3RefineRequest(BaseModel):
     persona: str = Field(..., description="재생성할 페르소나 ID")
     current_message: DraftMessage = Field(..., description="현재 메시지")
     feedback: str = Field(..., description="사용자 피드백")
+    model_config_input: Optional[ModelConfig] = Field(None, description="모델 설정 (선택)", alias="model_config")
 
 
 # ========================

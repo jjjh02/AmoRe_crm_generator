@@ -142,7 +142,7 @@
                 <section class="step-section" id="step-3">
                     <div class="step-header">
                         <h1>메시지 설정</h1>
-                        <p>발송 목적과 스타일</p>
+                        <p>발송 목적, 스타일, AI 모델 선택</p>
                     </div>
 
 
@@ -192,6 +192,49 @@
                             <p style="color:#8B95A1;font-size:13px;">이벤트 선택 시 상세정보가 표시됩니다</p>
                         </div>
                     </div>
+                    
+                    <!-- AI 모델 선택 섹션 -->
+                    <div class="settings-card ai-model-section">
+                        <h3>🤖 AI 모델 설정</h3>
+                        <p class="settings-description">각 생성 단계에서 사용할 AI 모델을 선택하세요</p>
+                        
+                        <div class="model-selection-grid">
+                            <!-- 브리프 생성 모델 -->
+                            <div class="model-select-item">
+                                <label>📋 브리프 생성</label>
+                                <div class="model-dropdown" id="brief-model-select" onclick="toggleModelDropdown('brief')">
+                                    <span class="selected-model" id="brief-selected-model">기본 모델</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="model-dropdown-menu" id="brief-dropdown-menu"></div>
+                            </div>
+                            
+                            <!-- 초안 생성 모델 -->
+                            <div class="model-select-item">
+                                <label>✍️ 초안 생성</label>
+                                <div class="model-dropdown" id="draft-model-select" onclick="toggleModelDropdown('draft')">
+                                    <span class="selected-model" id="draft-selected-model">기본 모델</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="model-dropdown-menu" id="draft-dropdown-menu"></div>
+                            </div>
+                            
+                            <!-- 페르소나 튜닝 모델 -->
+                            <div class="model-select-item">
+                                <label>👥 페르소나 튜닝</label>
+                                <div class="model-dropdown" id="tuning-model-select" onclick="toggleModelDropdown('tuning')">
+                                    <span class="selected-model" id="tuning-selected-model">기본 모델</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="model-dropdown-menu" id="tuning-dropdown-menu"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="model-info-box" id="model-info-box" style="display:none;">
+                            <span class="info-icon">💡</span>
+                            <span id="model-info-text">모델 정보가 여기에 표시됩니다</span>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Step 4: AI 브리프 확인 -->
@@ -200,6 +243,7 @@
                         <h1>📋 마케팅 브리프 확인</h1>
                         <p>AI가 생성한 브리프를 검토하고 수정하세요</p>
                     </div>
+                    
                     <div class="ai-result-card" id="brief-result-card">
                         <div class="ai-result-content">
                             <textarea id="brief-text-display" rows="12" placeholder="브리프 생성 중..."></textarea>
@@ -223,6 +267,7 @@
                         <h1>✍️ 메시지 초안 확인</h1>
                         <p>브랜드 톤이 반영된 초안을 검토하세요</p>
                     </div>
+                    
                     <div class="ai-result-card" id="draft-result-card">
                         <div class="draft-preview">
                             <div class="draft-title-box">
@@ -244,6 +289,40 @@
                     <div class="step-info-box">
                         <span class="info-label">🎨 브랜드 톤</span>
                         <span id="brand-tone-display">-</span>
+                    </div>
+                    
+                    <!-- 페르소나 선택 (Step 5 하단) -->
+                    <div class="persona-tuning-settings">
+                        <div class="settings-card persona-selection-card">
+                            <h3>👥 생성할 페르소나 선택</h3>
+                            <p class="settings-description">메시지를 생성할 고객 유형을 선택하세요</p>
+                            <div class="persona-checkbox-group" id="persona-checkbox-group">
+                                <label class="persona-checkbox selected" data-persona="Luxury_Lover">
+                                    <input type="checkbox" value="Luxury_Lover" checked>
+                                    <span class="persona-chip" style="--persona-color: #9065B0;">프리미엄</span>
+                                </label>
+                                <label class="persona-checkbox selected" data-persona="Sensitive_Skin">
+                                    <input type="checkbox" value="Sensitive_Skin" checked>
+                                    <span class="persona-chip" style="--persona-color: #0F7B6C;">민감성</span>
+                                </label>
+                                <label class="persona-checkbox selected" data-persona="Budget_Seeker">
+                                    <input type="checkbox" value="Budget_Seeker" checked>
+                                    <span class="persona-chip" style="--persona-color: #D9730D;">가성비</span>
+                                </label>
+                                <label class="persona-checkbox selected" data-persona="Trend_Follower">
+                                    <input type="checkbox" value="Trend_Follower" checked>
+                                    <span class="persona-chip" style="--persona-color: #E03E8E;">트렌드</span>
+                                </label>
+                                <label class="persona-checkbox selected" data-persona="Natural_Beauty">
+                                    <input type="checkbox" value="Natural_Beauty" checked>
+                                    <span class="persona-chip" style="--persona-color: #2383E2;">자연주의</span>
+                                </label>
+                            </div>
+                            <div class="persona-actions">
+                                <button class="action-btn secondary small" onclick="selectAllPersonas()">전체 선택</button>
+                                <button class="action-btn secondary small" onclick="deselectAllPersonas()">전체 해제</button>
+                            </div>
+                        </div>
                     </div>
                 </section>
 

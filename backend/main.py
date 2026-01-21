@@ -5,20 +5,20 @@ CRM Message Studio - FastAPI Backend
 
 import time
 import uuid
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .llm_provider import get_llm_provider, OllamaProvider
+from .llm_provider import get_llm_manager, LLMProviderManager
 from .data_service import DataService, STAGE_ORDER, STAGE_KR, PERSONA_INFO
 from .schemas import (
     Step1BriefRequest, Step1RefineRequest,
     Step2DraftRequest, Step2RefineRequest,
     Step3TuningRequest, Step3RefineRequest,
-    ErrorResponse
+    ErrorResponse, ModelConfig
 )
 from .prompts import (
     build_brief_prompt, build_brief_refine_prompt,
@@ -34,10 +34,16 @@ sessions: Dict[str, Dict[str, Any]] = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """앱 시작/종료 이벤트"""
+    llm_manager = get_llm_manager()
+    available = llm_manager.get_available_providers()
+    
     print(f"🚀 CRM Message Studio API 시작")
-    print(f"   LLM Provider: {settings.LLM_PROVIDER}")
-    print(f"   Ollama Host: {settings.OLLAMA_HOST}")
-    print(f"   Ollama Model: {settings.OLLAMA_MODEL}")
+    print(f"   Available Providers: {available}")
+    print(f"   Default Provider: {settings.LLM_PROVIDER}")
+    if "ollama" in available:
+        print(f"   Ollama Model: {settings.OLLAMA_MODEL}")
+    if "openrouter" in available:
+        print(f"   OpenRouter Model: {settings.OPENROUTER_DEFAULT_MODEL}")
     yield
     print("👋 API 종료")
 
@@ -45,7 +51,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CRM Message Studio API",
     description="3단계 인터랙티브 CRM 메시지 생성 파이프라인",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -59,17 +65,82 @@ app.add_middleware(
 )
 
 
-# LLM Provider 인스턴스
-llm = get_llm_provider()
+# LLM Provider Manager
+llm_manager = get_llm_manager()
+
+
+def get_model_params(model_config: Optional[ModelConfig]) -> tuple:
+    """ModelConfig에서 provider와 model 추출"""
+    if model_config:
+        return model_config.provider, model_config.model
+    return None, None
 
 
 # ===========================
-# Health Check
+# Health Check & Model Info
 # ===========================
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "model": settings.OLLAMA_MODEL}
+    """서버 상태 확인"""
+    return {
+        "status": "ok",
+        "providers": llm_manager.get_available_providers(),
+        "default_provider": settings.LLM_PROVIDER
+    }
+
+
+@app.get(f"{settings.API_PREFIX}/models")
+async def get_available_models():
+    """사용 가능한 LLM 모델 목록 조회"""
+    available_providers = llm_manager.get_available_providers()
+    
+    result = {
+        "providers": [],
+        "default_provider": settings.LLM_PROVIDER
+    }
+    
+    for provider_name in available_providers:
+        models = settings.AVAILABLE_MODELS.get(provider_name, [])
+        
+        # 기본 모델 결정
+        if provider_name == "ollama":
+            default_model = settings.OLLAMA_MODEL
+        elif provider_name == "openrouter":
+            default_model = settings.OPENROUTER_DEFAULT_MODEL
+        else:
+            default_model = models[0]["id"] if models else None
+        
+        result["providers"].append({
+            "id": provider_name,
+            "name": provider_name.title(),
+            "models": models,
+            "default_model": default_model
+        })
+    
+    return {
+        "success": True,
+        "data": result
+    }
+
+
+@app.get(f"{settings.API_PREFIX}/personas")
+async def get_personas():
+    """사용 가능한 페르소나 목록 조회"""
+    personas_list = []
+    for persona_id, info in PERSONA_INFO.items():
+        personas_list.append({
+            "id": persona_id,
+            "label": info["label"],
+            "color": info.get("color", "#333")
+        })
+    
+    return {
+        "success": True,
+        "data": {
+            "personas": personas_list
+        }
+    }
 
 
 # ===========================
@@ -82,6 +153,9 @@ async def create_brief(request: Step1BriefRequest):
     start_time = time.time()
     
     try:
+        # 모델 설정 추출
+        provider, model = get_model_params(request.model_config_input)
+        
         # 제품 검색
         product = DataService.find_product(request.brand_name, request.product_name)
         if not product:
@@ -121,8 +195,14 @@ async def create_brief(request: Step1BriefRequest):
             event=event
         )
         
-        # LLM 호출
-        brief_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
+        # LLM 호출 (모델 선택 지원)
+        brief_text = await llm_manager.generate(
+            messages=messages,
+            provider=provider,
+            model=model,
+            max_tokens=1024,
+            temperature=0.7
+        )
         
         # 세션 생성
         session_id = f"sess_{uuid.uuid4().hex[:12]}"
@@ -148,7 +228,11 @@ async def create_brief(request: Step1BriefRequest):
                 "brand_name": request.brand_name,
                 "product_name": product.get("name"),
                 "stage": stage_name,
-                "stage_kr": stage_kr
+                "stage_kr": stage_kr,
+                "model_used": {
+                    "provider": provider or settings.LLM_PROVIDER,
+                    "model": model
+                }
             },
             "processing_time_ms": processing_time
         }
@@ -165,6 +249,9 @@ async def refine_brief(request: Step1RefineRequest):
     start_time = time.time()
     
     try:
+        # 모델 설정 추출
+        provider, model = get_model_params(request.model_config_input)
+        
         # 세션 확인
         session = sessions.get(request.session_id)
         if not session:
@@ -173,8 +260,14 @@ async def refine_brief(request: Step1RefineRequest):
         # 프롬프트 생성
         messages = build_brief_refine_prompt(request.current_brief, request.feedback)
         
-        # LLM 호출
-        brief_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
+        # LLM 호출 (모델 선택 지원)
+        brief_text = await llm_manager.generate(
+            messages=messages,
+            provider=provider,
+            model=model,
+            max_tokens=1024,
+            temperature=0.7
+        )
         
         # 세션 업데이트
         session["brief_text"] = brief_text
@@ -208,6 +301,9 @@ async def create_draft(request: Step2DraftRequest):
     start_time = time.time()
     
     try:
+        # 모델 설정 추출
+        provider, model = get_model_params(request.model_config_input)
+        
         # 세션 확인
         session = sessions.get(request.session_id)
         if not session:
@@ -223,8 +319,14 @@ async def create_draft(request: Step2DraftRequest):
             brand_story=brand_story
         )
         
-        # LLM 호출
-        draft_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
+        # LLM 호출 (모델 선택 지원)
+        draft_text = await llm_manager.generate(
+            messages=messages,
+            provider=provider,
+            model=model,
+            max_tokens=1024,
+            temperature=0.7
+        )
         
         # 제목/본문 파싱
         title, body = parse_title_body(draft_text)
@@ -244,7 +346,11 @@ async def create_draft(request: Step2DraftRequest):
                 "body": body,
                 "raw_output": draft_text,
                 "brand_name": brand_name,
-                "brand_tone": brand_story.get("tone_keywords", [])
+                "brand_tone": brand_story.get("tone_keywords", []),
+                "model_used": {
+                    "provider": provider or settings.LLM_PROVIDER,
+                    "model": model
+                }
             },
             "processing_time_ms": processing_time
         }
@@ -261,6 +367,9 @@ async def refine_draft(request: Step2RefineRequest):
     start_time = time.time()
     
     try:
+        # 모델 설정 추출
+        provider, model = get_model_params(request.model_config_input)
+        
         # 세션 확인
         session = sessions.get(request.session_id)
         if not session:
@@ -273,8 +382,14 @@ async def refine_draft(request: Step2RefineRequest):
             feedback=request.feedback
         )
         
-        # LLM 호출
-        draft_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
+        # LLM 호출 (모델 선택 지원)
+        draft_text = await llm_manager.generate(
+            messages=messages,
+            provider=provider,
+            model=model,
+            max_tokens=1024,
+            temperature=0.7
+        )
         
         # 제목/본문 파싱
         title, body = parse_title_body(draft_text)
@@ -309,10 +424,13 @@ async def refine_draft(request: Step2RefineRequest):
 
 @app.post(f"{settings.API_PREFIX}/step3/tuning")
 async def create_tuning(request: Step3TuningRequest):
-    """Step 3: 페르소나별 메시지 생성"""
+    """Step 3: 페르소나별 메시지 생성 (선택한 페르소나만)"""
     start_time = time.time()
     
     try:
+        # 모델 설정 추출
+        provider, model = get_model_params(request.model_config_input)
+        
         # 세션 확인
         session = sessions.get(request.session_id)
         if not session:
@@ -320,6 +438,7 @@ async def create_tuning(request: Step3TuningRequest):
         
         messages_list = []
         
+        # 선택된 페르소나만 처리
         for persona_id in request.personas:
             # 페르소나 정보 가져오기
             persona = DataService.find_persona(persona_id)
@@ -336,8 +455,14 @@ async def create_tuning(request: Step3TuningRequest):
                 persona_label=persona_info["label"]
             )
             
-            # LLM 호출
-            tuned_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
+            # LLM 호출 (모델 선택 지원)
+            tuned_text = await llm_manager.generate(
+                messages=messages,
+                provider=provider,
+                model=model,
+                max_tokens=1024,
+                temperature=0.7
+            )
             
             # 제목/본문 파싱
             title, body = parse_title_body(tuned_text)
@@ -362,7 +487,11 @@ async def create_tuning(request: Step3TuningRequest):
                 "step": "tuning",
                 "session_id": request.session_id,
                 "messages": messages_list,
-                "total_personas": len(messages_list)
+                "total_personas": len(messages_list),
+                "model_used": {
+                    "provider": provider or settings.LLM_PROVIDER,
+                    "model": model
+                }
             },
             "processing_time_ms": processing_time
         }
@@ -379,6 +508,9 @@ async def refine_tuning(request: Step3RefineRequest):
     start_time = time.time()
     
     try:
+        # 모델 설정 추출
+        provider, model = get_model_params(request.model_config_input)
+        
         # 세션 확인
         session = sessions.get(request.session_id)
         if not session:
@@ -394,8 +526,14 @@ async def refine_tuning(request: Step3RefineRequest):
             feedback=request.feedback
         )
         
-        # LLM 호출
-        tuned_text = await llm.generate(messages, max_tokens=1024, temperature=0.7)
+        # LLM 호출 (모델 선택 지원)
+        tuned_text = await llm_manager.generate(
+            messages=messages,
+            provider=provider,
+            model=model,
+            max_tokens=1024,
+            temperature=0.7
+        )
         
         # 제목/본문 파싱
         title, body = parse_title_body(tuned_text)

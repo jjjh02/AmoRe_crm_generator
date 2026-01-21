@@ -838,9 +838,11 @@ body {
 
 .phone-carousel {
     display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 20px;
-    width: max-content;
-    padding: 0 4px;
+    padding: 0 16px;
+    min-width: 100%;
 }
 
 .phone-mockup {
@@ -1350,4 +1352,413 @@ body {
 
 #step-3 #expert-persona-creator {
     margin-top: 32px;
+}
+
+/* =========================================
+   AI Model Selection (Step 3)
+   ========================================= */
+.ai-model-section {
+    margin-top: 24px;
+    border: 1px solid #E8DEEE;
+    background: linear-gradient(to bottom, #FDFBFF, #FFFFFF);
+}
+
+.ai-model-section h3 {
+    color: #9065B0;
+}
+
+.model-selection-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.model-select-item {
+    position: relative;
+}
+
+.model-select-item label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--toss-gray-600);
+    margin-bottom: 8px;
+}
+
+.model-dropdown {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--toss-white);
+    border: 1px solid var(--toss-gray-200);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.model-dropdown:hover {
+    border-color: #9065B0;
+}
+
+.model-dropdown.active {
+    border-color: #9065B0;
+    box-shadow: 0 0 0 3px rgba(144, 101, 176, 0.1);
+}
+
+.selected-model {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--toss-black);
+}
+
+.dropdown-arrow {
+    font-size: 10px;
+    color: var(--toss-gray-400);
+    transition: transform 0.2s;
+}
+
+.model-dropdown.active .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.model-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--toss-white);
+    border: 1px solid var(--toss-gray-200);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-3);
+    z-index: 100;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+    margin-top: 4px;
+}
+
+.model-dropdown-menu.show {
+    display: block;
+}
+
+.model-provider-section {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--toss-gray-100);
+}
+
+.model-provider-section:last-child {
+    border-bottom: none;
+}
+
+.model-provider-header {
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--toss-gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.model-menu-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.model-menu-item:hover {
+    background: var(--toss-gray-50);
+}
+
+.model-menu-item.selected {
+    background: #F4F0F7;
+}
+
+.model-menu-item .model-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--toss-black);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.model-menu-item .model-name .check-icon {
+    color: #9065B0;
+    font-size: 12px;
+}
+
+.model-menu-item .model-desc {
+    font-size: 12px;
+    color: var(--toss-gray-500);
+    margin-top: 2px;
+}
+
+.model-info-box {
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: #F4F0F7;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.model-info-box .info-icon {
+    font-size: 16px;
+}
+
+.model-info-box #model-info-text {
+    font-size: 13px;
+    color: #6B4D7D;
+}
+
+@media (max-width: 768px) {
+    .model-selection-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================
+   Model Selector UI (Legacy - Step 4, 5)
+   ========================================= */
+.model-selector-card {
+    background: var(--toss-white);
+    border: 1px solid var(--toss-gray-100);
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.model-selector-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.model-selector-header:hover {
+    background: var(--toss-gray-50);
+}
+
+.model-icon {
+    font-size: 18px;
+}
+
+.model-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--toss-gray-700);
+}
+
+.model-current {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--toss-blue);
+    font-weight: 500;
+    padding: 4px 10px;
+    background: var(--toss-blue-light);
+    border-radius: var(--radius-full);
+}
+
+.model-selector-dropdown {
+    border-top: 1px solid var(--toss-gray-100);
+    padding: 12px 16px;
+    background: var(--toss-gray-50);
+}
+
+.model-provider-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.model-provider-tab {
+    padding: 6px 14px;
+    border: 1px solid var(--toss-gray-200);
+    border-radius: var(--radius-full);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--toss-gray-600);
+    background: var(--toss-white);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.model-provider-tab:hover {
+    border-color: var(--toss-gray-300);
+}
+
+.model-provider-tab.active {
+    background: var(--toss-blue);
+    border-color: var(--toss-blue);
+    color: var(--toss-white);
+}
+
+.model-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.model-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--toss-white);
+    border: 1px solid var(--toss-gray-100);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.model-option:hover {
+    border-color: var(--toss-blue);
+    background: var(--toss-blue-light);
+}
+
+.model-option.selected {
+    border-color: var(--toss-blue);
+    background: var(--toss-blue-light);
+}
+
+.model-option .model-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--toss-black);
+}
+
+.model-option .model-desc {
+    font-size: 12px;
+    color: var(--toss-gray-500);
+    margin-left: auto;
+}
+
+.model-option .model-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--toss-gray-300);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.model-option.selected .model-check {
+    background: var(--toss-blue);
+    border-color: var(--toss-blue);
+}
+
+.model-option.selected .model-check::after {
+    content: '✓';
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* =========================================
+   Persona Selection UI
+   ========================================= */
+.persona-tuning-settings {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.persona-selection-card {
+    background: var(--toss-white);
+    border: 1px solid var(--toss-gray-100);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+}
+
+.persona-selection-card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--toss-black);
+}
+
+.settings-description {
+    font-size: 13px;
+    color: var(--toss-gray-500);
+    margin-bottom: 16px;
+}
+
+.persona-checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.persona-checkbox {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.persona-checkbox input[type="checkbox"] {
+    display: none;
+}
+
+.persona-chip {
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    font-size: 14px;
+    font-weight: 500;
+    border: 2px solid var(--toss-gray-200);
+    background: var(--toss-white);
+    color: var(--toss-gray-600);
+    transition: all 0.15s;
+}
+
+.persona-checkbox input:checked + .persona-chip {
+    border-color: var(--persona-color, var(--toss-blue));
+    background: color-mix(in srgb, var(--persona-color, var(--toss-blue)) 10%, white);
+    color: var(--persona-color, var(--toss-blue));
+}
+
+.persona-checkbox:hover .persona-chip {
+    border-color: var(--persona-color, var(--toss-gray-300));
+}
+
+.persona-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn.small {
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+/* =========================================
+   Responsive Adjustments
+   ========================================= */
+@media (max-width: 768px) {
+    .persona-checkbox-group {
+        flex-direction: column;
+    }
+    
+    .persona-chip {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .model-selector-dropdown {
+        padding: 12px;
+    }
+    
+    .model-provider-tabs {
+        flex-wrap: wrap;
+    }
 }

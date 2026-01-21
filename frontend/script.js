@@ -1,6 +1,7 @@
 /**
  * CRM Studio - Toss Style V2
  * Loads brand images from brand_images.json
+ * v2.0 - 모델 선택 및 페르소나 선택 기능 추가
  */
 
 // Brand data - loaded from JSON
@@ -15,6 +16,19 @@ const PERSONA_INFO = {
 };
 
 let BRANDS_DATA = {}, PRODUCTS = [], PERSONAS = [], CAMPAIGN_EVENTS = {};
+
+// 사용 가능한 모델 목록
+let availableModelsData = null;
+
+// 현재 선택된 모델 설정
+let selectedModels = {
+    brief: { provider: null, model: null },
+    draft: { provider: null, model: null },
+    tuning: { provider: null, model: null }
+};
+
+// 선택된 페르소나 목록
+let selectedPersonas = ['Luxury_Lover', 'Sensitive_Skin', 'Budget_Seeker', 'Trend_Follower', 'Natural_Beauty'];
 
 state = {
     currentStep: 1, selectedBrand: null, selectedProduct: null,
@@ -32,22 +46,244 @@ const $ = id => document.getElementById(id);
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
     setupEvents();
+    initializeModelSelectors();
+    initializePersonaCheckboxes();
 });
 
 async function loadData() {
     try {
-        const [prod, brand, persona, camp, brandImg] = await Promise.all([
-            fetch('../data/products.json').then(r => r.json()),
-            fetch('../data/brand_stories.json').then(r => r.json()),
-            fetch('../data/personas.json').then(r => r.json()),
-            fetch('../data/campaign_events.json').then(r => r.json()),
-            fetch('./brand_images.json').then(r => r.json())
+        console.log('데이터 로딩 시작...');
+        
+        const responses = await Promise.all([
+            fetch('../data/products.json'),
+            fetch('../data/brand_stories.json'),
+            fetch('../data/personas.json'),
+            fetch('../data/campaign_events.json'),
+            fetch('./brand_images.json')
         ]);
-        PRODUCTS = prod; BRANDS_DATA = brand; PERSONAS = persona; CAMPAIGN_EVENTS = camp; BRAND_IMAGES = brandImg;
+        
+        // 각 응답 상태 확인
+        responses.forEach((r, i) => {
+            const names = ['products', 'brand_stories', 'personas', 'campaign_events', 'brand_images'];
+            console.log(`${names[i]}: ${r.status} ${r.ok ? 'OK' : 'FAILED'}`);
+        });
+        
+        const [prod, brand, persona, camp, brandImg] = await Promise.all(
+            responses.map(r => r.json())
+        );
+        
+        PRODUCTS = prod; 
+        BRANDS_DATA = brand; 
+        PERSONAS = persona; 
+        CAMPAIGN_EVENTS = camp; 
+        BRAND_IMAGES = brandImg;
+        
+        console.log('로드된 브랜드:', Object.keys(BRANDS_DATA));
+        console.log('로드된 제품 수:', PRODUCTS.length);
+        
         // Render both brand grids so they're ready for either mode
         renderBrands(false);
         renderBrands(true);
-    } catch (e) { console.error('Data load error:', e); renderBrands(false); renderBrands(true); }
+        
+        console.log('데이터 로딩 완료');
+    } catch (e) { 
+        console.error('Data load error:', e); 
+        renderBrands(false); 
+        renderBrands(true); 
+    }
+}
+
+// ===========================
+// Model Selector Functions (Step 3 드롭다운)
+// ===========================
+
+async function initializeModelSelectors() {
+    try {
+        console.log('모델 목록 로딩...');
+        availableModelsData = await CRMStudioAPI.getAvailableModels();
+        console.log('사용 가능한 모델:', availableModelsData);
+        
+        // Step 3의 각 드롭다운 메뉴 렌더링
+        ['brief', 'draft', 'tuning'].forEach(step => {
+            renderModelDropdownMenu(step);
+        });
+        
+        // 외부 클릭 시 드롭다운 닫기
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.model-select-item')) {
+                closeAllDropdowns();
+            }
+        });
+    } catch (error) {
+        console.error('모델 목록 로드 실패:', error);
+        // 기본 모델 표시
+        ['brief', 'draft', 'tuning'].forEach(step => {
+            const menuEl = $(`${step}-dropdown-menu`);
+            if (menuEl) {
+                menuEl.innerHTML = '<div class="model-menu-item"><span class="model-name">서버 연결 필요</span><span class="model-desc">백엔드 서버를 먼저 시작해주세요</span></div>';
+            }
+        });
+    }
+}
+
+function renderModelDropdownMenu(step) {
+    const menuEl = $(`${step}-dropdown-menu`);
+    if (!menuEl || !availableModelsData) return;
+    
+    let html = '';
+    
+    // 각 Provider별로 섹션 생성
+    availableModelsData.providers.forEach(provider => {
+        html += `
+            <div class="model-provider-section">
+                <div class="model-provider-header">${provider.name}</div>
+                ${provider.models.map(m => {
+                    const isSelected = selectedModels[step].provider === provider.id && selectedModels[step].model === m.id;
+                    return `
+                        <div class="model-menu-item ${isSelected ? 'selected' : ''}" 
+                             onclick="selectModelFromDropdown('${step}', '${provider.id}', '${m.id}', '${m.name}', '${m.description}')">
+                            <div class="model-name">
+                                ${isSelected ? '<span class="check-icon">✓</span>' : ''}
+                                ${m.name}
+                            </div>
+                            <div class="model-desc">${m.description}</div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    });
+    
+    menuEl.innerHTML = html;
+}
+
+function toggleModelDropdown(step) {
+    const dropdown = $(`${step}-model-select`);
+    const menu = $(`${step}-dropdown-menu`);
+    
+    if (!dropdown || !menu) return;
+    
+    // 다른 드롭다운 닫기
+    ['brief', 'draft', 'tuning'].forEach(s => {
+        if (s !== step) {
+            $(`${s}-model-select`)?.classList.remove('active');
+            $(`${s}-dropdown-menu`)?.classList.remove('show');
+        }
+    });
+    
+    // 현재 드롭다운 토글
+    const isOpen = menu.classList.contains('show');
+    dropdown.classList.toggle('active', !isOpen);
+    menu.classList.toggle('show', !isOpen);
+}
+
+function closeAllDropdowns() {
+    ['brief', 'draft', 'tuning'].forEach(step => {
+        $(`${step}-model-select`)?.classList.remove('active');
+        $(`${step}-dropdown-menu`)?.classList.remove('show');
+    });
+}
+
+function selectModelFromDropdown(step, provider, modelId, modelName, modelDesc) {
+    // 선택 저장
+    selectedModels[step] = { provider, model: modelId };
+    
+    // API 모듈에도 설정
+    CRMStudioAPI.setModelConfig(step, provider, modelId);
+    
+    // UI 업데이트 - 선택된 모델 표시
+    const selectedEl = $(`${step}-selected-model`);
+    if (selectedEl) {
+        selectedEl.textContent = modelName;
+    }
+    
+    // 드롭다운 메뉴 재렌더링 (체크 표시 업데이트)
+    renderModelDropdownMenu(step);
+    
+    // 드롭다운 닫기
+    closeAllDropdowns();
+    
+    // 모델 정보 박스 업데이트
+    updateModelInfoBox(step, modelName, modelDesc, provider);
+    
+    console.log(`${step} 모델 선택:`, provider, modelId);
+}
+
+function updateModelInfoBox(step, modelName, modelDesc, provider) {
+    const infoBox = $('model-info-box');
+    const infoText = $('model-info-text');
+    
+    if (infoBox && infoText) {
+        const stepNames = { brief: '브리프', draft: '초안', tuning: '페르소나' };
+        infoText.textContent = `${stepNames[step]} 생성에 "${modelName}" 모델이 사용됩니다. (${provider.toUpperCase()})`;
+        infoBox.style.display = 'flex';
+    }
+}
+
+// Legacy functions for Step 4, 5 (하위 호환성)
+function setupModelSelector(step) {
+    // Step 4, 5에서 사용하는 이전 방식 (필요시)
+}
+
+function selectProvider(step, providerId) {
+    // 이전 방식 유지
+}
+
+function renderModelList(step, providerId) {
+    // 이전 방식 유지
+}
+
+function selectModel(step, provider, modelId, modelName) {
+    selectModelFromDropdown(step, provider, modelId, modelName, '');
+}
+
+// ===========================
+// Persona Selection Functions
+// ===========================
+
+function initializePersonaCheckboxes() {
+    const checkboxGroup = $('persona-checkbox-group');
+    if (!checkboxGroup) return;
+    
+    // 체크박스 변경 이벤트 리스너
+    checkboxGroup.addEventListener('change', (e) => {
+        if (e.target.type === 'checkbox') {
+            updateSelectedPersonas();
+        }
+    });
+}
+
+function updateSelectedPersonas() {
+    const checkboxes = document.querySelectorAll('#persona-checkbox-group input[type="checkbox"]');
+    selectedPersonas = Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+    
+    // 라벨 스타일 업데이트
+    document.querySelectorAll('#persona-checkbox-group .persona-checkbox').forEach(label => {
+        const checkbox = label.querySelector('input');
+        label.classList.toggle('selected', checkbox.checked);
+    });
+    
+    console.log('선택된 페르소나:', selectedPersonas);
+}
+
+function selectAllPersonas() {
+    document.querySelectorAll('#persona-checkbox-group input[type="checkbox"]').forEach(cb => {
+        cb.checked = true;
+    });
+    updateSelectedPersonas();
+}
+
+function deselectAllPersonas() {
+    document.querySelectorAll('#persona-checkbox-group input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+    });
+    updateSelectedPersonas();
+}
+
+function getSelectedPersonas() {
+    return selectedPersonas.length > 0 ? selectedPersonas : null;
 }
 
 function setupEvents() {
@@ -518,6 +754,14 @@ async function regenerateDraft() {
 
 async function generateTuningFromDraft() {
     // Step 5 → Step 6 (Tuning 생성)
+    
+    // 페르소나 선택 확인
+    const personas = getSelectedPersonas();
+    if (!personas || personas.length === 0) {
+        alert('최소 1개 이상의 페르소나를 선택해주세요.');
+        return;
+    }
+    
     const overlay = $('loading-overlay');
     overlay.style.display = 'flex';
 
@@ -525,10 +769,14 @@ async function generateTuningFromDraft() {
         updateLoadingStep(2, 'active');
         updateLoadingStep(3, 'active');
 
-        const result = await CRMStudioAPI.generateTuning({
-            title: aiState.draftTitle,
-            body: aiState.draftBody
-        });
+        // 선택된 페르소나만 전달
+        const result = await CRMStudioAPI.generateTuning(
+            {
+                title: aiState.draftTitle,
+                body: aiState.draftBody
+            },
+            personas  // 선택된 페르소나 목록 전달
+        );
 
         updateLoadingStep(2, 'done');
         updateLoadingStep(3, 'done');

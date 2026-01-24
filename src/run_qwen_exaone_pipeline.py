@@ -234,6 +234,7 @@ def _load_data(base):
         "crm_categorized": load_json(os.path.join(data_dir, 'crm_analysis_results_categorized.json')),
         "campaign_events": load_json(os.path.join(data_dir, 'campaign_events.json')),
         "integrated_templates": load_json(os.path.join(data_dir, 'integrated_crm_templates.json')),
+        "tone_guides": load_json(os.path.join(data_dir, 'tone_guide.json')),
     }
 
 
@@ -318,6 +319,7 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     crm_categorized = data['crm_categorized']
     campaign_events = data['campaign_events']
     integrated_templates = data['integrated_templates']
+    tone_guides = data['tone_guides']
 
     persona = find_persona(personas, args.persona)
     product = find_product(products, args.brand, args.product)
@@ -328,9 +330,9 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     if context_examples:
         selected_context_example = random.choice(context_examples)
 
-    # Get vibe text based on vibe parameter
-    vibes = persona.get("vibe", {})
-    vibe_text = vibes.get(args.vibe, "")
+    # Get vibe text from tone_guide.json based on vibe parameter
+    tone_guide = tone_guides.get(args.vibe, {})
+    vibe_text = tone_guide.get('description', '')
 
     # Qwen highlights
     highlights = top_highlights_for_product(persona, product, top_k=args.top_k)

@@ -82,7 +82,7 @@ STYLE_TYPES = [
     'Mixed_Strategies'
 ]
 
-EXAONE_ADAPTER_ID = "jinn33/crm-dpo-adapter"
+EXAONE_ADAPTER_ID = "jinn33/crm-kto-adapter"
 
 _QWEN_GENERATOR_CACHE = {}
 _EXAONE_GENERATOR_CACHE = {}

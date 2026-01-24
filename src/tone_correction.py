@@ -186,6 +186,17 @@ def build_exaone_prompt(
     forbidden = ', '.join(crm_goal.get('forbidden_context', []))
     cta_style = crm_goal.get('cta_style', '')
 
+    # 브랜드 파라미터 키 한국어 매핑
+    brand_key_mapping = {
+        "emotion_level": "감성 수준",
+        "sentence_density": "문장 밀도",
+        "tone_style": "톤 스타일",
+        "certainty_level": "확신 수준",
+        "rhythm": "리듬",
+        "brand_presence": "브랜드 존재감",
+        "cta_pressure": "CTA 압박감",
+    }
+
     brand_info_lines = []
     if isinstance(brand_params, dict):
         for key in (
@@ -199,7 +210,8 @@ def build_exaone_prompt(
         ):
             value = brand_params.get(key)
             if value:
-                brand_info_lines.append(f"- {key}: {value}")
+                kr_key = brand_key_mapping.get(key, key)
+                brand_info_lines.append(f"- {kr_key}: {value}")
     brand_info = "\n".join(brand_info_lines) if brand_info_lines else "- (없음)"
     style_section = ""
     if style_examples:
@@ -223,7 +235,7 @@ def build_exaone_prompt(
     persona_section += "\n"
 
     system_prompt = (
-        "당신은 생성자가 아닌 편집기(editor)입니다.\n"
+        "당신은 생성자가 아닌 편집기입니다.\n"
         "입력 초안의 의미를 유지한 채,\n"
         "어휘와 문장 리듬만 조정합니다."
     )

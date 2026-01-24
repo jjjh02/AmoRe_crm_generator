@@ -568,7 +568,7 @@ def main():
     parser.add_argument('--persona', required=False, help='Persona index (0~) or name')
     parser.add_argument('--brand', required=False, help='Brand name (brand_params.json key)')
     parser.add_argument('--product', required=False, help='Product name (partial match allowed)')
-    parser.add_argument('--stage_index', type=int, required=False, help='CRM stage index (0~4)')
+    parser.add_argument('--stage_index', type=int, required=False, help='CRM stage index (0=할인, 1=신제품런칭, 2=베스트셀러)')
     parser.add_argument('--vibe', default='2030', choices=['2030', '4060'], help='Target age vibe (2030 or 4060)')
     parser.add_argument('--top_k', type=int, default=3, help='RAG Top-K and review Top-K')
     parser.add_argument('--qwen_model', default='Qwen/Qwen2.5-1.5B-Instruct', help='Qwen local model name')

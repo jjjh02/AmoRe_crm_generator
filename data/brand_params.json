@@ -1,5 +1,5 @@
 {
-    "Sulwhasoo": {
+  "설화수": {
     "emotion_level": "낮음",
     "sentence_density": "정보 중심",
     "tone_style": "설명형",
@@ -7,8 +7,8 @@
     "rhythm": "차분",
     "brand_presence": "간접",
     "cta_pressure": "약"
-    },
-    "Laneige": {
+  },
+  "라네즈": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "대화형",
@@ -16,8 +16,8 @@
     "rhythm": "경쾌",
     "brand_presence": "간접",
     "cta_pressure": "중"
-    },
-    "Innisfree": {
+  },
+  "이니스프리": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "제안형",
@@ -25,8 +25,8 @@
     "rhythm": "보통",
     "brand_presence": "간접",
     "cta_pressure": "약"
-    },
-    "HERA": {
+  },
+  "헤라": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "제안형",
@@ -34,8 +34,8 @@
     "rhythm": "보통",
     "brand_presence": "간접",
     "cta_pressure": "중"
-    },
-    "IOPE": {
+  },
+  "아이오페": {
     "emotion_level": "낮음",
     "sentence_density": "정보 중심",
     "tone_style": "설명형",
@@ -43,8 +43,8 @@
     "rhythm": "차분",
     "brand_presence": "최소",
     "cta_pressure": "약"
-    },
-    "Aestura": {
+  },
+  "에스쁘아": {
     "emotion_level": "낮음",
     "sentence_density": "정보 중심",
     "tone_style": "설명형",
@@ -52,8 +52,8 @@
     "rhythm": "차분",
     "brand_presence": "최소",
     "cta_pressure": "약"
-    },
-    "Etude": {
+  },
+  "에뛰드": {
     "emotion_level": "높음",
     "sentence_density": "감성 중심",
     "tone_style": "대화형",
@@ -61,8 +61,8 @@
     "rhythm": "경쾌",
     "brand_presence": "전면",
     "cta_pressure": "중"
-    },
-    "Primera": {
+  },
+  "프리메라": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "제안형",
@@ -70,8 +70,8 @@
     "rhythm": "보통",
     "brand_presence": "간접",
     "cta_pressure": "약"
-    },
-    "Illiyoon": {
+  },
+  "일리윤": {
     "emotion_level": "낮음",
     "sentence_density": "정보 중심",
     "tone_style": "설명형",
@@ -79,8 +79,8 @@
     "rhythm": "차분",
     "brand_presence": "최소",
     "cta_pressure": "약"
-    },
-    "Hanyul": {
+  },
+  "한율": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "제안형",
@@ -88,8 +88,8 @@
     "rhythm": "보통",
     "brand_presence": "간접",
     "cta_pressure": "약"
-    },
-    "Espoir": {
+  },
+  "에스쁘아": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "대화형",
@@ -97,8 +97,8 @@
     "rhythm": "경쾌",
     "brand_presence": "전면",
     "cta_pressure": "중"
-    },
-    "COSRX": {
+  },
+  "코스알엑스": {
     "emotion_level": "낮음",
     "sentence_density": "정보 중심",
     "tone_style": "설명형",
@@ -106,8 +106,8 @@
     "rhythm": "차분",
     "brand_presence": "최소",
     "cta_pressure": "약"
-    },
-    "Ryo": {
+  },
+  "려": {
     "emotion_level": "중간",
     "sentence_density": "정보 중심",
     "tone_style": "설명형",
@@ -115,8 +115,8 @@
     "rhythm": "보통",
     "brand_presence": "간접",
     "cta_pressure": "약"
-    },
-    "MiseEnScene": {
+  },
+  "미쟝센": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "제안형",
@@ -124,8 +124,8 @@
     "rhythm": "경쾌",
     "brand_presence": "간접",
     "cta_pressure": "중"
-    },
-    "HappyBath": {
+  },
+  "해피바스": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "대화형",
@@ -133,8 +133,8 @@
     "rhythm": "부드러움",
     "brand_presence": "간접",
     "cta_pressure": "약"
-    },
-    "Mamonde": {
+  },
+  "마몽드": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "제안형",
@@ -142,8 +142,8 @@
     "rhythm": "부드러움",
     "brand_presence": "간접",
     "cta_pressure": "약"
-    },
-    "Odyssey": {
+  },
+  "오딧세이": {
     "emotion_level": "중간",
     "sentence_density": "정보 중심",
     "tone_style": "설명형",
@@ -151,8 +151,8 @@
     "rhythm": "보통",
     "brand_presence": "간접",
     "cta_pressure": "중"
-    },
-    "VitalBeauty": {
+  },
+  "바이탈뷰티": {
     "emotion_level": "낮음",
     "sentence_density": "정보 중심",
     "tone_style": "설명형",
@@ -160,8 +160,8 @@
     "rhythm": "차분",
     "brand_presence": "간접",
     "cta_pressure": "약"
-    },
-    "MEDIHEAL": {
+  },
+  "메디힐": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "제안형",
@@ -169,8 +169,8 @@
     "rhythm": "보통",
     "brand_presence": "간접",
     "cta_pressure": "중"
-    },
-    "MakeON": {
+  },
+  "메이크온": {
     "emotion_level": "낮음",
     "sentence_density": "정보 중심",
     "tone_style": "설명형",
@@ -178,8 +178,8 @@
     "rhythm": "차분",
     "brand_presence": "최소",
     "cta_pressure": "약"
-    },
-    "AMOREPACIFIC": {
+  },
+  "아모레퍼시픽": {
     "emotion_level": "낮음",
     "sentence_density": "정보 중심",
     "tone_style": "설명형",
@@ -187,8 +187,8 @@
     "rhythm": "차분",
     "brand_presence": "간접",
     "cta_pressure": "약"
-    },
-    "AP Beauty": {
+  },
+  "AP뷰티": {
     "emotion_level": "중간",
     "sentence_density": "균형",
     "tone_style": "제안형",
@@ -196,7 +196,5 @@
     "rhythm": "보통",
     "brand_presence": "간접",
     "cta_pressure": "약"
-    }
-    }
-    
-    
+  }
+}

@@ -31,13 +31,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 from rag_utils import vectorize_texts, cosine  # noqa: E402
 
 
-STAGE_ORDER = ['Acquisition', 'Activation', 'Retention', 'Revenue', 'Referral']
+STAGE_ORDER = ['할인', '신제품런칭', '베스트셀러']
 FOMO_STAGE_KEYS = {
-    0: '1_Acquisition_초기진입_압박',
-    1: '2_Activation_행동유도_압박',
-    2: '3_Retention_이탈방지_압박',
-    3: '4_Revenue_전환확정_압박',
-    4: '5_Referral_공유확산_압박',
+    0: '1_할인_구매유도_압박',
+    1: '2_신제품런칭_얼리어답터_압박',
+    2: '3_베스트셀러_인기검증_압박',
 }
 
 PERSONA_NAMES = [
@@ -407,7 +405,7 @@ def main():
     parser.add_argument('--draft_text', help='직접 입력하는 초안 텍스트', required=False)
     parser.add_argument('--persona', required=True, help='페르소나 인덱스(0~) 또는 이름')
     parser.add_argument('--brand', required=True, help='브랜드명 (brand_params.json 키)')
-    parser.add_argument('--stage_index', type=int, required=True, help='발신 목적 인덱스 (0~4)')
+    parser.add_argument('--stage_index', type=int, required=True, help='발신 목적 인덱스 (0=할인, 1=신제품런칭, 2=베스트셀러)')
     parser.add_argument('--top_k', type=int, default=5, help='CRM RAG Top-K')
     parser.add_argument('--model_name', default="LGAI-EXAONE/EXAONE-3.0-7.8B-Instruct", help='Exaone 로컬 모델 이름')
     parser.add_argument('--out_path', default=None, help='결과 저장 경로')

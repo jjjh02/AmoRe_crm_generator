@@ -73,24 +73,23 @@ def is_positive_review(review):
 
 
 def extract_candidate_texts(product):
-    """제품의 긍정적인 리뷰 텍스트만 추출 (제품명, 카테고리 제외)"""
+    """제품의 설명 텍스트 추출"""
     texts = []
-    
-    # 긍정 리뷰 추출
-    for r in product.get('reviews', []):
-        if is_positive_review(r):
-            text = r.get('text', '').strip()
-            # 최소 길이 필터 (20자 이상만 포함)
-            if len(text) > 20:
-                texts.append(text)
-    
-    # 긍정 리뷰가 부족하면 모든 리뷰 추가
-    if len(texts) < 3:
-        for r in product.get('reviews', []):
-            text = r.get('text', '').strip()
-            if len(text) > 20 and text not in texts:
-                texts.append(text)
-    
+
+    # 제품 설명 추출
+    description = product.get('description', '').strip()
+    if description:
+        # 문장 단위로 분리 (마침표, 쉼표 등으로 구분)
+        sentences = re.split(r'[.,;]\s*', description)
+        for sent in sentences:
+            sent = sent.strip()
+            if len(sent) > 10:  # 최소 길이 필터
+                texts.append(sent)
+
+    # 설명이 없거나 너무 짧으면 전체 설명을 하나의 텍스트로 추가
+    if not texts:
+        texts.append(description if description else product.get('name', ''))
+
     return texts
 
 
@@ -107,14 +106,26 @@ def extract_highlight_snippet(text):
 
 
 def build_persona_query(persona):
+    """새로운 persona 형식에 맞춰 쿼리 생성"""
     parts = []
-    if persona.get('skin_type'):
-        parts.append('주요 고민: ' + persona['skin_type'])
-    if persona.get('value_focus'):
-        parts.append('가치관: ' + persona['value_focus'])
-    if persona.get('shopping_style'):
-        parts.append('쇼핑스타일: ' + persona['shopping_style'])
-    if persona.get('growth_point'):
-        parts.append('성장 포인트: ' + persona['growth_point'])
+
+    # 이름
+    if persona.get('name'):
+        parts.append('페르소나: ' + persona['name'])
+
+    # 라이프스타일
+    if persona.get('lifestyle'):
+        parts.append('라이프스타일: ' + persona['lifestyle'])
+
+    # 페인 포인트
+    if persona.get('pain_point'):
+        parts.append('페인 포인트: ' + persona['pain_point'])
+
+    # 행동 특성 (behavioral_traits는 dict이므로 값들을 추출)
+    behavioral_traits = persona.get('behavioral_traits', {})
+    if behavioral_traits:
+        traits_str = ', '.join([f"{v}" for v in behavioral_traits.values()])
+        parts.append('행동 특성: ' + traits_str)
+
     query = ' | '.join(parts)
     return query

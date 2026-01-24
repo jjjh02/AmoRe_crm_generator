@@ -267,12 +267,28 @@ class LocalQwenGenerator:
         brand_name,
         product_name,
         persona,
-        reviews,
+        product_description,
         highlights,
         campaign_event_info=None,
+        context_example=None,
     ):
-        persona_traits = ", ".join(persona.get("traits", []) if isinstance(persona.get("traits"), list) else [])
-        review_text = "\n".join([f"- {r.get('text', '')[:150]}" for r in reviews[:3]])
+        # Extract new persona format fields
+        persona_name = persona.get("name", "고객")
+        behavioral_traits = persona.get("behavioral_traits", {})
+        pain_point = persona.get("pain_point", "")
+        don_ts = persona.get("don_ts", [])
+
+        # Format behavioral traits
+        traits_text = "\n".join([f"  - {key}: {value}" for key, value in behavioral_traits.items()])
+
+        # Format don'ts
+        donts_text = "\n".join([f"  - {item}" for item in don_ts])
+
+        # Use provided context_example or pick randomly
+        context_text = ""
+        if context_example:
+            context_text = f"상황 컨텍스트: {context_example}"
+
         highlights_text = "\n".join([f"- {h}" for h in highlights[:3]])
 
         event_section = ""
@@ -288,14 +304,15 @@ class LocalQwenGenerator:
 [제품]
 브랜드: {brand_name}
 제품명: {product_name}
+제품 설명: {product_description}
 
 [타겟 페르소나]
-특성: {persona_traits}
-주요 관심사: {persona.get('value_focus', '제품 품질')}
+이름: {persona_name}
+행동 특성:
+{traits_text}
+페인 포인트: {pain_point}
+{context_text}
 {event_section}
-[고객 리뷰 요약]
-{review_text}
-
 [핵심 포인트]
 {highlights_text}
 
@@ -308,27 +325,31 @@ class LocalQwenGenerator:
 [본문]
 (페르소나 공감과 제품 효과 중심, 200~300자)
 
-2. 리뷰에서 확인 가능한 사실만 사용하세요.
-3. 숫자, 할인율, 이벤트명은 절대 사용하지 마세요. 
+2. 제품 설명과 핵심 포인트에서 확인 가능한 사실만 사용하세요.
+3. 숫자, 할인율, 이벤트명은 절대 사용하지 마세요.
 4. 단, [캠페인/이벤트 정보]가 제공된 경우 해당 내용은 적극 활용하세요
 5. 페르소나의 가치관을 반영하되, 페르소나 이름(고객군명)은 절대 직접 언급하지 마세요.
 6. 고객을 "당신", "이 제품을 원하는 분들" 등으로 표현하세요.
+
+[주의사항 - 절대 금지]
+{donts_text}
 """
 
         return [
-            {"role": "system", "content": f"{persona.get('name', '고객')} 페르소나를 위한 마케팅 전문가입니다."},
+            {"role": "system", "content": f"{persona_name} 페르소나를 위한 마케팅 전문가입니다."},
             {"role": "user", "content": prompt},
         ]
 
-    def generate_marketing_draft(self, brand_name, product_name, persona, reviews, highlights, campaign_event_info=None):
+    def generate_marketing_draft(self, brand_name, product_name, persona, product_description, highlights, campaign_event_info=None, context_example=None):
         """생성: 마케팅 초안 (One-Stage)."""
         messages = self.build_marketing_messages(
             brand_name,
             product_name,
             persona,
-            reviews,
+            product_description,
             highlights,
             campaign_event_info=campaign_event_info,
+            context_example=context_example,
         )
         marketing_draft, duration = self.generate_text(messages, max_tokens=512, temperature=0.1)
         return marketing_draft, duration

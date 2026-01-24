@@ -274,6 +274,12 @@ def _normalize_row(row):
         normalized['style_index'] = _to_int(normalized.get('style_index'), default=0)
     if 'is_event' in normalized:
         normalized['is_event'] = _to_bool_int(normalized.get('is_event'), default=0)
+    if 'vibe' in normalized:
+        vibe_val = str(normalized.get('vibe', '2030')).strip()
+        if vibe_val not in ['2030', '4060']:
+            normalized['vibe'] = '2030'
+        else:
+            normalized['vibe'] = vibe_val
     return normalized
 
 
@@ -316,6 +322,16 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     persona = find_persona(personas, args.persona)
     product = find_product(products, args.brand, args.product)
 
+    # Select context_example from persona
+    context_examples = persona.get("context_examples", [])
+    selected_context_example = None
+    if context_examples:
+        selected_context_example = random.choice(context_examples)
+
+    # Get vibe text based on vibe parameter
+    vibes = persona.get("vibe", {})
+    vibe_text = vibes.get(args.vibe, "")
+
     # Qwen highlights
     highlights = top_highlights_for_product(persona, product, top_k=args.top_k)
     highlight_texts = [h['snippet'] for h in highlights]
@@ -338,9 +354,10 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
             product.get('brand_name', ''),
             product.get('name', ''),
             persona,
-            product.get('reviews', []),
+            product.get('description', ''),
             highlight_texts,
-            campaign_event_info=selected_event
+            campaign_event_info=selected_event,
+            context_example=selected_context_example
         )
         print('=== QWEN INPUT (messages) ===')
         for m in qwen_messages:
@@ -349,9 +366,10 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
         product.get('brand_name', ''),
         product.get('name', ''),
         persona,
-        product.get('reviews', []),
+        product.get('description', ''),
         highlight_texts,
-        campaign_event_info=selected_event
+        campaign_event_info=selected_event,
+        context_example=selected_context_example
     )
     qwen_end = time.time()
     qwen_duration = q_dur if q_dur is not None else (qwen_end - qwen_start)
@@ -400,7 +418,9 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
         crm_goal=crm_goal,
         stage_index=args.stage_index,
         crm_snippets=crm_snippets,
-        style_examples=style_ref_templates
+        style_examples=style_ref_templates,
+        context_example=selected_context_example,
+        vibe_text=vibe_text
     )
     # Flatten prompt for logging
     exa_prompt_text = "\n\n".join(
@@ -437,6 +457,9 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     out = {
         "persona_input": args.persona,
         "persona_profile": persona,
+        "vibe": args.vibe,
+        "vibe_text": vibe_text,
+        "selected_context_example": selected_context_example,
         "brand": args.brand,
         "product_query": args.product,
         "product_basic": {
@@ -544,6 +567,7 @@ def main():
     parser.add_argument('--brand', required=False, help='Brand name (brand_params.json key)')
     parser.add_argument('--product', required=False, help='Product name (partial match allowed)')
     parser.add_argument('--stage_index', type=int, required=False, help='CRM stage index (0~4)')
+    parser.add_argument('--vibe', default='2030', choices=['2030', '4060'], help='Target age vibe (2030 or 4060)')
     parser.add_argument('--top_k', type=int, default=3, help='RAG Top-K and review Top-K')
     parser.add_argument('--qwen_model', default='Qwen/Qwen2.5-1.5B-Instruct', help='Qwen local model name')
     parser.add_argument('--exa_model', default='LGAI-EXAONE/EXAONE-4.0-1.2B', help='Exaone local model name')

@@ -66,7 +66,15 @@ ENGLISH_TRIGGERS = [
     "versatile",
     "태평양제약",
     "astrocypercol",
+    "praised",
+    "winter season",
+    "twice daily",
+    "appeal",
     "essential",
+    "effective & gentle",
+    "formulation",
+    "efficacy",
+    "EDDY",
     "ultimate",
     "available",
     "suggestion",
@@ -76,9 +84,7 @@ ENGLISH_TRIGGERS = [
 
 # 메타/대괄호 표현
 META_TOKENS = [
-    "[", "]", "{", "}", "(", ")"
-    "[제목]", "[CTA]",
-    "[감성적", "[행동", "[보고]"
+    "{", "}", "(", ")", "*", ":", ";", "#", ">", "<", "%", "_"
 ]
 
 @lru_cache(maxsize=None)
@@ -171,6 +177,8 @@ def build_exaone_prompt(
     stage_index: int,
     crm_snippets: List[Dict[str, Any]],
     style_examples: List[str] = [],
+    context_example: str = None,
+    vibe_text: str = None,
 ) -> List[Dict[str, str]]:
     stage_name = STAGE_ORDER[stage_index]
     stage_kr = crm_goal.get('stage_kr', '')
@@ -204,6 +212,18 @@ def build_exaone_prompt(
             f"{template_refs}\n\n"
         )
 
+    # Persona information for Exaone
+    persona_name = persona.get("name", "고객")
+    persona_section = f"[타겟 페르소나]\n이름: {persona_name}\n"
+
+    if context_example:
+        persona_section += f"상황 컨텍스트: {context_example}\n"
+
+    if vibe_text:
+        persona_section += f"톤 가이드: {vibe_text}\n"
+
+    persona_section += "\n"
+
     system_prompt = (
         "당신은 생성자가 아닌 편집기(editor)입니다.\n"
         "입력 초안의 의미를 유지한 채,\n"
@@ -214,6 +234,7 @@ def build_exaone_prompt(
         "의미를 바꾸지 않는 선에서 표현만 다듬으세요.\n\n"
         "[입력 초안]\n"
         f"{qwen_draft}\n\n"
+        f"{persona_section}"
         "[브랜드 정보]\n"
         f"{brand_info}\n\n"
         "[발신 목적]\n"
@@ -229,9 +250,10 @@ def build_exaone_prompt(
         "2) CTA는 1줄을 반드시 포함하세요.\n\n"
         "3) 출력 형식은 아래 두 줄을 그대로 사용하세요.\n"
         "   레이블과 형식을 변경하지 마세요.\n\n"
-        "4) 영어 사용은 금지하며, 한국어로만 작성하세요.\n"
-        "[제목] 한 줄 요약 제목\n"
-        "[본문] 페르소나 공감 + 브랜드 톤 반영 본문 (CTA 포함)"
+        "4) 영어 사용은 금지하며, 한국어로만 작성하세요.\n\n"
+        "5) 타겟 페르소나의 상황 컨텍스트와 톤 가이드를 적극 반영하세요.\n"
+        "[제목]\n"
+        "[본문]"
     )
 
     return [

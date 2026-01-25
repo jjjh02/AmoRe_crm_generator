@@ -36,6 +36,7 @@ from tone_correction import (  # noqa: E402
     format_fomo_examples,
     STAGE_ORDER,
 )
+from gate_validator import gate_with_retry, validate_crm_output, format_output  # noqa: E402
 
 
 def top_highlights_for_product(persona, product, top_k=3):
@@ -275,6 +276,10 @@ def _normalize_row(row):
         normalized['style_index'] = _to_int(normalized.get('style_index'), default=0)
     if 'is_event' in normalized:
         normalized['is_event'] = _to_bool_int(normalized.get('is_event'), default=0)
+    if 'use_gate' in normalized:
+        normalized['use_gate'] = bool(_to_bool_int(normalized.get('use_gate'), default=1))
+    if 'gate_max_retries' in normalized:
+        normalized['gate_max_retries'] = _to_int(normalized.get('gate_max_retries'), default=3)
     if 'vibe' in normalized:
         vibe_val = str(normalized.get('vibe', '2030')).strip()
         if vibe_val not in ['2030', '4060']:
@@ -431,15 +436,69 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
     print('=== EXAONE PROMPT ===')
     print(exa_prompt_text)
 
-    # Exaone generation
+    # Exaone generation with GATE validation
     exa_start = time.time()
     if exa_generator is None:
         exa_generator = _get_exaone_generator(args.exa_model)
     else:
         exa_generator = _ensure_exaone_adapter(exa_generator)
-    exa_output = exa_generator.generate(exa_messages)
-    print('=== EXAONE OUTPUT ===')
-    print(exa_output)
+
+    # GATE 로직 사용 여부 확인
+    use_gate = getattr(args, 'use_gate', True)
+    gate_max_retries = getattr(args, 'gate_max_retries', 3)
+
+    if use_gate:
+        print('[GATE] 검증 로직 활성화')
+        gate_result = gate_with_retry(
+            generator=exa_generator,
+            messages=exa_messages,
+            persona_name=persona.get('name', ''),
+            max_retries=gate_max_retries,
+            enable_persona_check=True,
+            enable_english_check=True,
+            enable_format_check=True,
+            enable_forbidden_check=True,
+            temperature=0.4,
+        )
+
+        exa_output = gate_result["output"]
+        exa_formatted = gate_result["formatted"]
+        exa_title = gate_result["title"]
+        exa_body = gate_result["body"]
+        gate_passed = gate_result["success"]
+        gate_attempts = gate_result["attempts"]
+        gate_validation = gate_result["validation_result"]
+        gate_raw_outputs = gate_result["raw_outputs"]
+
+        print('=== EXAONE OUTPUT (RAW) ===')
+        print(exa_output)
+        print('\n=== EXAONE OUTPUT (FORMATTED) ===')
+        print(exa_formatted)
+        print(f'\n[GATE] 검증 결과: {"✓ 통과" if gate_passed else "✗ 실패"} (시도: {gate_attempts})')
+
+    else:
+        print('[GATE] 검증 로직 비활성화')
+        exa_output = exa_generator.generate(exa_messages)
+        print('=== EXAONE OUTPUT ===')
+        print(exa_output)
+
+        # GATE 없이 간단 파싱
+        validation = validate_crm_output(
+            exa_output,
+            enable_persona_check=False,
+            enable_english_check=False,
+            enable_format_check=True,
+            enable_forbidden_check=False,
+        )
+
+        exa_formatted = format_output(validation["cleaned"]) if validation["cleaned"] else exa_output
+        exa_title = validation["cleaned"]["title"] if validation["cleaned"] else ""
+        exa_body = validation["cleaned"]["body"] if validation["cleaned"] else ""
+        gate_passed = None
+        gate_attempts = 1
+        gate_validation = validation
+        gate_raw_outputs = [exa_output]
+
     exa_end = time.time()
     timeline.append({
         "step": "exaone_prompt",
@@ -492,7 +551,15 @@ def _run_pipeline(args, data=None, q_generator=None, exa_generator=None):
             "prompt_text": exa_prompt_text,
             "rag_crm_snippets": crm_snippets,
             "selected_style_templates": style_ref_templates,
-            "result_raw": exa_output
+            "result_raw": exa_output,
+            "result_formatted": exa_formatted,
+            "result_title": exa_title,
+            "result_body": exa_body,
+            "gate_enabled": use_gate,
+            "gate_passed": gate_passed,
+            "gate_attempts": gate_attempts,
+            "gate_validation": gate_validation,
+            "gate_all_outputs": gate_raw_outputs if use_gate else None,
         },
         "timeline": timeline
     }
@@ -578,7 +645,12 @@ def main():
     parser.add_argument('--out_path', default=None, help='Output path')
     parser.add_argument('--batch_json', default=None, help='Batch input JSON path (list of rows)')
     parser.add_argument('--disable_cache', action='store_true', help='Disable in-process caches')
+    parser.add_argument('--use_gate', type=int, default=1, help='Enable GATE validation (0 or 1, default: 1)')
+    parser.add_argument('--gate_max_retries', type=int, default=3, help='GATE max retry attempts (default: 3)')
     args = parser.parse_args()
+
+    # Convert use_gate to boolean
+    args.use_gate = bool(args.use_gate)
 
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     _set_cache_enabled(not args.disable_cache)

@@ -35,7 +35,7 @@ PERSONA_IDS = [
 
 # 길이 제한 (글자 수 기준)
 TITLE_MIN_LENGTH = 5
-TITLE_MAX_LENGTH = 35
+TITLE_MAX_LENGTH = 40
 BODY_MIN_LENGTH = 40
 BODY_MAX_LENGTH = 150
 
@@ -48,31 +48,52 @@ FORBIDDEN_WORDS = [
 
 def parse_crm_message(text: str) -> Optional[Dict[str, str]]:
     """
-    CRM 메시지에서 [제목]과 [본문]을 파싱합니다.
+    CRM 메시지에서 제목과 본문을 파싱합니다.
+    지원 형식:
+    1. [제목] ... [본문] ...
+    2. 제목\n ... 본문\n ...  (레이블만 있고 콜론 없음)
+    3. \n\n으로 구분
+    4. 단일 \n으로 구분
 
     Returns:
         {"title": str, "body": str} 또는 None (파싱 실패 시)
     """
-    # [제목], [본문] 패턴 찾기
+    # 1. [제목], [본문] 패턴 찾기
     title_match = re.search(r'\[제목\]\s*\n?(.*?)(?=\[본문\]|$)', text, re.DOTALL)
     body_match = re.search(r'\[본문\]\s*\n?(.*?)$', text, re.DOTALL)
 
-    # 둘 다 있는 경우
     if title_match and body_match:
         title = title_match.group(1).strip()
         body = body_match.group(1).strip()
         return {"title": title, "body": body}
 
-    # [제목], [본문] 레이블이 없는 경우 - \n\n 으로 구분 시도
+    # 2. '제목\n' / '본문\n' 패턴 찾기 (레이블 단어만 있고 콜론 없음)
+    # 예: "제목 \n윤조에센스...\n\n본문 \n설화수..."
+    title_match = re.search(r'^\s*제목\s*\n(.*?)(?=\n\s*본문\s*\n|$)', text, re.MULTILINE | re.DOTALL)
+    body_match = re.search(r'\n\s*본문\s*\n(.*?)$', text, re.MULTILINE | re.DOTALL)
+
+    if title_match and body_match:
+        title = title_match.group(1).strip()
+        body = body_match.group(1).strip()
+        return {"title": title, "body": body}
+
+    # 3. [제목], [본문] 레이블이 없는 경우 - \n\n 으로 구분 시도
     parts = text.strip().split('\n\n', 1)
     if len(parts) == 2:
-        return {"title": parts[0].strip(), "body": parts[1].strip()}
+        # "제목" 또는 "본문" 단어가 맨 앞에 있으면 제거
+        part0 = re.sub(r'^\s*제목\s*', '', parts[0].strip())
+        part1 = re.sub(r'^\s*본문\s*', '', parts[1].strip())
+        return {"title": part0, "body": part1}
 
-    # 단일 \n으로 구분 시도 (제목과 본문이 각각 한 줄인 경우)
+    # 4. 단일 \n으로 구분 시도 (제목과 본문이 각각 한 줄인 경우)
     parts = text.strip().split('\n', 1)
     if len(parts) == 2:
         potential_title = parts[0].strip()
         potential_body = parts[1].strip()
+
+        # "제목" 단어 제거
+        potential_title = re.sub(r'^\s*제목\s*', '', potential_title)
+        potential_body = re.sub(r'^\s*본문\s*', '', potential_body)
 
         # 제목이 너무 길지 않은 경우만 유효
         if len(potential_title) <= TITLE_MAX_LENGTH:
@@ -167,45 +188,54 @@ def check_english_words(text: str, min_length: int = 4) -> Tuple[bool, List[str]
     return len(filtered) > 0, filtered
 
 
-def check_format_validity(parsed: Optional[Dict[str, str]]) -> Tuple[bool, str]:
+def check_format_validity(parsed: Optional[Dict[str, str]]) -> Tuple[bool, str, Optional[Dict[str, str]]]:
     """
     파싱된 제목/본문이 형식 요구사항을 충족하는지 확인합니다.
 
     Returns:
-        (is_valid: bool, error_message: str)
+        (is_valid: bool, error_message: str, details: Dict[str, str] or None)
+        details: {"title": str, "body": str, "title_len": int, "body_len": int}
     """
     if parsed is None:
-        return False, "제목과 본문을 파싱할 수 없습니다"
+        return False, "제목과 본문을 파싱할 수 없습니다", None
 
     title = parsed["title"]
     body = parsed["body"]
 
     # 제목 길이 체크
     title_len = len(title)
+    body_len = len(body)
+
+    details = {
+        "title": title,
+        "body": body,
+        "title_len": title_len,
+        "body_len": body_len,
+    }
+
     if title_len < TITLE_MIN_LENGTH:
-        return False, f"제목이 너무 짧습니다 ({title_len}자 < {TITLE_MIN_LENGTH}자)"
+        return False, f"제목이 너무 짧습니다 ({title_len}자 < {TITLE_MIN_LENGTH}자)", details
     if title_len > TITLE_MAX_LENGTH:
-        return False, f"제목이 너무 깁니다 ({title_len}자 > {TITLE_MAX_LENGTH}자)"
+        return False, f"제목이 너무 깁니다 ({title_len}자 > {TITLE_MAX_LENGTH}자)", details
 
     # 본문 길이 체크
-    body_len = len(body)
     if body_len < BODY_MIN_LENGTH:
-        return False, f"본문이 너무 짧습니다 ({body_len}자 < {BODY_MIN_LENGTH}자)"
+        return False, f"본문이 너무 짧습니다 ({body_len}자 < {BODY_MIN_LENGTH}자)", details
     if body_len > BODY_MAX_LENGTH:
-        return False, f"본문이 너무 깁니다 ({body_len}자 > {BODY_MAX_LENGTH}자)"
+        return False, f"본문이 너무 깁니다 ({body_len}자 > {BODY_MAX_LENGTH}자)", details
 
     # 제목에 줄바꿈이 있는지 체크 (제목은 한 줄이어야 함)
     if '\n' in title:
-        return False, "제목에 줄바꿈이 포함되어 있습니다"
+        return False, "제목에 줄바꿈이 포함되어 있습니다", details
 
     # 본문 줄 수 체크 (1~3줄)
     body_lines = [line.strip() for line in body.split('\n') if line.strip()]
     if len(body_lines) < 1:
-        return False, "본문이 비어있습니다"
+        return False, "본문이 비어있습니다", details
     if len(body_lines) > 4:
-        return False, f"본문이 너무 많은 줄로 구성되어 있습니다 ({len(body_lines)}줄 > 4줄)"
+        return False, f"본문이 너무 많은 줄로 구성되어 있습니다 ({len(body_lines)}줄 > 4줄)", details
 
-    return True, ""
+    return True, "", details
 
 
 def check_forbidden_words(text: str) -> Tuple[bool, List[str]]:
@@ -251,8 +281,9 @@ def validate_crm_output(
     parsed = parse_crm_message(output)
 
     # 2. 형식 검증
+    format_details = None
     if enable_format_check:
-        format_valid, format_error = check_format_validity(parsed)
+        format_valid, format_error, format_details = check_format_validity(parsed)
         if not format_valid:
             errors.append(f"형식 오류: {format_error}")
 
@@ -300,6 +331,7 @@ def validate_crm_output(
         "cleaned": cleaned,
         "errors": errors,
         "warnings": warnings,
+        "format_details": format_details,
     }
 
 
@@ -372,6 +404,13 @@ def gate_with_retry(
         print(f"[GATE] ✗ 검증 실패:")
         for error in validation["errors"]:
             print(f"  - {error}")
+
+        # 길이 관련 오류 시 실제 내용 출력
+        if validation.get("format_details"):
+            details = validation["format_details"]
+            print(f"[GATE] 생성된 내용:")
+            print(f"  제목 ({details['title_len']}자): {details['title']}")
+            print(f"  본문 ({details['body_len']}자): {details['body']}")
 
         if validation["warnings"]:
             print(f"[GATE] ⚠ 경고:")
